@@ -1,0 +1,80 @@
+[PM 10-54-57;08-15-26] :: (issue): "New page existed but was not visible because sidenav links were still manually listed." - Solaris
+[PM 10-54-57;08-15-26] :: (fixed): "Added dynamic page discovery through /api/pages and sideloader.js so sidenav links are generated from page folders." - Solaris
+[PM 10-54-58;08-15-26] :: (issue): "Sidenav links could disappear after component reload because sideloader.js only ran once as a cached module." - Solaris
+[PM 10-54-58;08-15-26] :: (fixed): "Updated sideloader.js to reload page links after components:loaded." - Solaris
+[PM 10-54-58;08-15-26] :: (fixed): "Updated README Addition of pages instructions to document automatic sidenav loading." - Solaris
+
+[AM 12-03-02;08-16-26] :: (fixed): "Integrated the receipt renderer into TestPage with canvas preview, debug controls, mock data, PNG save, and print support." - Solaris
+[AM 12-03-02;08-16-26] :: (issue): "TestPage was still a shell page and had not yet been wired to the receipt canvas debug flow." - Solaris
+[AM 12-03-02;08-16-26] :: (fixed): "Initialized the modal loader so modal open and close hooks are active during app boot." - Solaris
+[AM 12-03-03;08-16-26] :: (changes): 0 files
+[AM 12-15-31;08-16-26] :: (changes): 14 files
+  - webend(792)
+	- sidenav.css (3)
+	- topnav.css (3)
+	- index.html (1)
+	- script.js (1)
+	- styles.css (1)
+	- index.js (2)
+	- sidenav.js (2)
+	- index.js (1)
+	- topnav.js (1)
+	- testpage.js (161)
+	- receipt.js (289)
+	- rendereceipt.js (288)
+	- modal.css (26)
+	- testpage.css (13)
+[AM 12-18-34;08-16-26] :: (changes): 1 files
+  - .(112)
+	- README.md (112)
+[AM 12-20-25;08-16-26] :: (changes): 1 files
+  - webend(2)
+	- index.html (2)
+[AM 12-20-26;08-16-26] :: (fixed): "Preserved TestPage topnav and sidenav placeholders outside the generated test UI mount so both components load correctly." - Solaris
+[AM 12-22-36;08-16-26] :: (changes): 1 files
+  - webend(14)
+	- testpage.js (14)
+[AM 12-22-36;08-16-26] :: (fixed): "Reinitialized TestPage after repeated sidenav navigation and reset its transient menu state so returning to the page no longer leaves it blank or broken." - Solaris
+[AM 12-35-45;08-16-26] :: (changes): 18 files
+  - .(32)
+	- README.md (32)
+  - back(297)
+	- auth.py (117)
+	- data.py (135)
+	- encrytor.py (45)
+	- mentos.db (0)
+  - utils(140)
+	- dbmgr.py (73)
+	- pgmngt.py (67)
+  - webend(281)
+	- index.html (1)
+	- mdlmgr.js (101)
+	- index.html (27)
+	- signin.css (3)
+	- signin.js (16)
+	- index.html (27)
+	- signup.css (3)
+	- signup.js (16)
+	- modaloader.js (41)
+	- testpage.js (5)
+	- modal.css (41)
+[AM 12-35-46;08-16-26] :: (fixed): "Initialized named sign-in and sign-up modals, modal dependency loading, schema-backed SQLite auth data, password hashing, and account management CLI." - Solaris
+[AM 12-42-12;08-16-26] :: (changes): 10 files
+  - .(43)
+	- README.md (4)
+	- app.py (39)
+  - back(0)
+	- mentos.db (0)
+  - webend(225)
+	- sidenav.html (21)
+	- topnav.html (3)
+	- signin.js (45)
+	- authmgr.js (117)
+	- base.js (2)
+	- animgr.css (33)
+	- animmgr.js (4)
+[AM 12-42-13;08-16-26] :: (fixed): "Wired usr profiles to session-based authentication: anonymous users open sign-in, authenticated users see their profile and logout action." - Solaris
+[AM 12-42-30;08-16-26] :: (changes): 1 files
+  - .(1)
+	- README.md (1)
+[AM 12-42-30;08-16-26] :: (fixed): "Updated README documentation for usr profile authentication and the auth manager." - Solaris

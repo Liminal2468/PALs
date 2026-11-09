@@ -10,10 +10,11 @@ This is private contributed from STI College Cubao. Also to prevent Overflow in 
 
 As of this moment some part has yet to be updated, such as [server](server/) as some are still a template.
 
-> [!INFO]
+> [!NOTE]
+> 
 > THIS PROJECT REQUIRES INTERNET ACCESS TO REACT THE DATABASE SERVER <sup>[1](bindoc/maindoc/notes/apmain-whatis.md)</sup>
 
-> [!attention] The previous pals files are in [bindoc](bindoc/corefile)
+> [!WARNING] The previous pals files are in [bindoc](bindoc/corefile)
 ## Installation
 
 ### Requirements
@@ -46,7 +47,7 @@ Start the Vite frontend and Flask HOST API together:
 
 Vite is normally available at `http://localhost:5173/`; the API listens on `127.0.0.1:8000`. Press Ctrl-C to stop both services. On Windows, use WSL or follow the platform-specific instructions in [Running Mentos](bindoc/maindoc/notes/mentos-whatis.md).
 
-> [!abstract] For Tailscale setup and access requirements, see [What is APMAIN?](bindoc/maindoc/notes/apmain-whatis.md). For creating a feature branch, merging work, and the basic CI/CD process, see [Create a branch](bindoc/create-branch.md), [Merge a branch](bindoc/merge-branch.md), and [Basic CI/CD flow](bindoc/basic-cicdflow.md).
+> [!NOTE] For Tailscale setup and access requirements, see [What is APMAIN?](bindoc/maindoc/notes/apmain-whatis.md). For creating a feature branch, merging work, and the basic CI/CD process, see [Create a branch](bindoc/create-branch.md), [Merge a branch](bindoc/merge-branch.md), and [Basic CI/CD flow](bindoc/basic-cicdflow.md).
 
 
 ---

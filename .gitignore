@@ -1,3 +1,13 @@
+# Python-generated files
 __pycache__/
-*.py[cod]
+*.py[oc]
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+node_modules/
+
+# Local database signing keys and developer environment
 .env
+.keys/
