@@ -1,0 +1,6 @@
+{
+  "name": "@mentos/analyst-api",
+  "private": true,
+  "type": "module",
+  "exports": "./src/routes.js"
+}

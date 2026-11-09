@@ -1,0 +1,6 @@
+{
+  "name": "@mentos/chat-api",
+  "private": true,
+  "type": "module",
+  "exports": "./src/routes.js"
+}

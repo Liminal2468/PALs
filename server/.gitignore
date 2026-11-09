@@ -1,0 +1,8 @@
+node_modules/
+**/node_modules/
+database/.env
+authentication/.provider.env
+database/keys/generated/*
+database/keys/trusted/*
+!database/keys/generated/.gitkeep
+!database/keys/trusted/.gitkeep

@@ -1,0 +1,6 @@
+.env
+keys/generated/*
+keys/trusted/*
+!keys/generated/.gitkeep
+!keys/trusted/.gitkeep
+node_modules/

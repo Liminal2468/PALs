@@ -1,0 +1,17 @@
+{
+  "name": "@mentos/shared-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./config": "./src/config.js",
+    "./db": "./src/db.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "mysql2": "^3.14.0"
+  }
+}

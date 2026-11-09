@@ -1,0 +1,16 @@
+{
+  "name": "@mentos/authentication-api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/routes.js",
+    "./providers": "./src/providers.js",
+    "./admins": "./src/admins.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "8.7.2",
+    "jose": "^6.1.0"
+  }
+}
