@@ -1,8 +1,9 @@
 # What is APMAIN
 <sub>It's pretty easy to understand it's the "app"-"main" &mdash; MainApp.</sub>
 
-> [!INFO] WHAT YOU SHOULD KNOW
->
+> [!NOTE]
+> **WHAT YOU SHOULD KNOW**
+> 
 > ApMain contains the REST API's of Mentos<sup>[1](mentos-whatis.md)</sup> that allows user level operation such as logging-in, tracking, ticketing, security and etc.
 >
 > It connects to [KeiNeokami](mailto:unknown.bit.609@gmail.com)'s tailnet, as a means of Transport Layer Security so that only the `HOST` and `DBSERV` are the ones communicating, without any worries to a [MITMATK](https://www.fortinet.com/resources/cyberglossary/man-in-the-middle-attack)'s 
