@@ -14,4 +14,5 @@ CI/CD means continuously integrating changes and, where deployment automation ex
 
 No GitHub Actions workflow files are present in this checkout, so this document describes the workflow rather than claiming that CI checks or deployments run automatically. Confirm which checks and deployment steps are configured with the project maintainer before treating a pull request or merge as automatically verified or deployed.
 
->[!WARNING] **Never put `.env` files, private keys, provider credentials, or other secrets in commits or CI logs.**
+>[!WARNING]
+>**Never put `.env` files, private keys, provider credentials, or other secrets in commits or CI logs.**
