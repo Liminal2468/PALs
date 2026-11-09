@@ -1,5 +1,7 @@
 # PALs file map
 
+<!-- TODO: REQUIRES UPDATING -->
+
 This is a source-oriented map of the two machine-side projects. **Mentos is
 HOST; `server/` is DBSERV (`apmain`).** The
 trees omit `.git/`, `node_modules/`, Python virtual environments, build output
