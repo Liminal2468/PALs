@@ -1,7 +1,7 @@
 # What is APMAIN
 <sub>It's pretty easy to understand it's the "app"-"main" &mdash; MainApp.</sub>
 
-> [!NOTE] 
+> [!NOTE]
 > **WHAT YOU SHOULD KNOW**
 >
 > ApMain contains the REST API's of Mentos<sup>[1](mentos-whatis.md)</sup> that allows user level operation such as logging-in, tracking, ticketing, security and etc.
@@ -45,5 +45,4 @@ sudo tailscale up
 After signing in, check the Tailscale tray status on Windows or run `tailscale status` on Linux. Joining the tailnet does not by itself enable Funnel, configure HTTPS, or publish the Mentos API.
 
 <sub>References: [Tailscale quickstart](https://tailscale.com/docs/how-to/quickstart), [Windows installation](https://tailscale.com/docs/install/windows), [Linux installation](https://tailscale.com/docs/install/linux), and [access control](https://tailscale.com/docs/features/access-control).</sub>
-
 
