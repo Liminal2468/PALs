@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0057a8">
+    <meta name="description" content="PALs is a peer-assisted learning community for STI College Cubao Senior High School.">
+    
+    <title>PALs | Learn better, together</title>
+    
+    <link rel="stylesheet" href="CSS/login.css">
+</head>
+<body>
+    <header class="page-shell topbar">
+        <div class="brand">
+            <img src="z/PALs.png" alt="PALs">
+            <span class="brand-name">Peer-Assisted Learning System</span>
+        </div>
+        <div class="header-actions">
+            <nav class="utility-links" aria-label="Support">
+                <a class="utility-link" href="ContactSupport.html">Contact support</a>
+                <a class="utility-link" href="FAQs.html">FAQs</a>
+            </nav>
+            <button class="login-link" id="loginTrigger" type="button" aria-haspopup="dialog" aria-controls="loginDialog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                    <path d="m10 17 5-5-5-5"/>
+                    <path d="M15 12H3"/>
+                </svg>
+                Log in
+            </button>
+        </div>
+    </header>
+
+    <dialog class="login-dialog" id="loginDialog" aria-labelledby="loginDialogTitle" aria-describedby="loginDialogDescription">
+        <div class="dialog-header">
+            <div>
+                <h2 id="loginDialogTitle">Sign in to PALs</h2>
+                <p id="loginDialogDescription">Use your STI College Cubao school account.</p>
+            </div>
+            <button class="dialog-close" id="closeLoginDialog" type="button" aria-label="Close login options">&times;</button>
+        </div>
+        <div class="login-choice-list" id="loginChoices">
+            <button class="login-choice login-choice-user" id="userLoginChoice" type="button">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path fill="#f25022" d="M2 2h9.5v9.5H2z"/>
+                    <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z"/>
+                    <path fill="#00a4ef" d="M2 12.5h9.5V22H2z"/>
+                    <path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z"/>
+                </svg>
+                <span>User: Continue with Microsoft Entra ID</span>
+            </button>
+            <button class="login-choice login-choice-admin" id="adminLoginChoice" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3 4.5 6v5.5c0 4.7 3.2 7.8 7.5 9.5 4.3-1.7 7.5-4.8 7.5-9.5V6L12 3Z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
+                <span>Admin log in</span>
+            </button>
+        </div>
+        <form class="login-form" id="userLoginForm" novalidate hidden>
+            <button class="login-back" type="button">← Login options</button>
+            <label for="userEmail">School email</label>
+            <input
+                class="school-email"
+                id="userEmail"
+                name="email"
+                type="email"
+                autocomplete="username"
+                placeholder="name@cubao.sti.edu.ph"
+                aria-describedby="userEmailHint userEmailError userLoginStatus"
+                required>
+            <p class="email-hint" id="userEmailHint">Use an account ending in @cubao.sti.edu.ph.</p>
+            <p class="email-error" id="userEmailError" aria-live="polite"></p>
+            <label class="terms-acceptance">
+                <input id="acceptTerms" name="acceptTerms" type="checkbox" required>
+                <span>I agree to the <a href="#termsDialog" id="openTerms" aria-haspopup="dialog" aria-controls="termsDialog">Terms &amp; Service</a>.</span>
+            </label>
+            <button class="login-submit" type="submit" disabled>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path fill="#f25022" d="M2 2h9.5v9.5H2z"/>
+                    <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z"/>
+                    <path fill="#00a4ef" d="M2 12.5h9.5V22H2z"/>
+                    <path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z"/>
+                </svg>
+                <span>Continue with Microsoft Entra ID</span>
+            </button>
+            <p class="login-status" id="userLoginStatus" role="status" aria-live="polite"></p>
+        </form>
+        <form class="login-form" id="adminLoginForm" novalidate hidden>
+            <button class="login-back" type="button">← Login options</button>
+            <label for="adminEmail">Admin school email</label>
+            <input
+                class="school-email"
+                id="adminEmail"
+                name="email"
+                type="email"
+                autocomplete="username"
+                placeholder="admin@cubao.sti.edu.ph"
+                aria-describedby="adminEmailHint adminEmailError adminLoginStatus"
+                required>
+            <p class="email-hint" id="adminEmailHint">Admin accounts must also end in @cubao.sti.edu.ph.</p>
+            <p class="email-error" id="adminEmailError" aria-live="polite"></p>
+            <label for="adminPassword">Password</label>
+            <input
+                class="school-email"
+                id="adminPassword"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required>
+            <button class="login-submit" type="submit" disabled>Admin log in</button>
+            <p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>
+        </form>
+    </dialog>
+
+    <dialog class="terms-dialog" id="termsDialog" aria-labelledby="termsTitle">
+        <div class="dialog-header">
+            <div>
+                <h2 id="termsTitle">PALs Terms and Conditions of Service</h2>
+                <p>Please review these terms before continuing.</p>
+            </div>
+            <button class="dialog-close" id="closeTerms" type="button" aria-label="Close Terms and Service">&times;</button>
+        </div>
+        <article class="terms-content">
+            <p>By creating an account, logging in, or using PALs, you agree to comply with these Terms and Conditions. If you do not agree, you must discontinue use of the platform.</p>
+
+            <h2>I. Eligibility and Account Registration</h2>
+            <ol>
+                <li>PALs is intended exclusively for Senior High School students of STI College Cubao.</li>
+                <li>Users must register and access PALs using their official STI College Cubao eLMS account (@cubao.sti.edu.ph).</li>
+                <li>Users must provide accurate, complete, and updated information when creating or updating their profiles.</li>
+                <li>Each user may only use their own account. Account sharing, impersonation, or unauthorized use of another person's account is prohibited.</li>
+                <li>Users are responsible for maintaining the confidentiality and security of their login credentials.</li>
+                <li>Users under eighteen (18) years old confirm that they have the permission of their parent or legal guardian to use PALs.</li>
+            </ol>
+
+            <h2>II. Purpose and Acceptable Use</h2>
+            <ol>
+                <li>PALs is designed to support academic learning through peer tutoring, study groups, academic discussions, and the sharing of educational resources.</li>
+                <li>Users must use the platform only for educational and school-related purposes.</li>
+                <li>All users must communicate respectfully and professionally.</li>
+                <li>The following activities are prohibited:
+                    <ul>
+                        <li>Harassment, bullying, threats, discrimination, or abusive behavior;</li>
+                        <li>Use of offensive, obscene, violent, or inappropriate content;</li>
+                        <li>Spam, advertising, solicitation, or unrelated communications;</li>
+                        <li>Distribution of harmful files, malware, or malicious links;</li>
+                        <li>Impersonation of another person or misuse of accounts;</li>
+                        <li>Retaliation against users who submit reports or feedback.</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h2>III. Academic Integrity</h2>
+            <ol>
+                <li>PALs is intended to support learning and collaboration, not academic dishonesty.</li>
+                <li>Users must not:
+                    <ul>
+                        <li>Share examination answers, quiz answers, or graded activity answers;</li>
+                        <li>Submit another person's work as their own;</li>
+                        <li>Complete graded coursework on behalf of another student;</li>
+                        <li>Use the platform for cheating or any form of academic misconduct.</li>
+                    </ul>
+                </li>
+                <li>Tutors should provide explanations, guidance, and learning support rather than direct answers intended to bypass learning requirements.</li>
+            </ol>
+
+            <h2>IV. Tutor and Tutee Responsibilities</h2>
+            <ol>
+                <li>Tutors shall provide honest, respectful, and constructive academic assistance.</li>
+                <li>Tutors must not misrepresent their knowledge, qualifications, or expertise.</li>
+                <li>Tutees are expected to actively participate and cooperate during tutoring sessions.</li>
+                <li>Both tutors and tutees shall treat each other respectfully and maintain academic-focused discussions.</li>
+                <li>Tutors are fellow students and are not teachers, instructors, or academic professionals.</li>
+                <li>PALs does not guarantee the accuracy of information provided by tutors, and users are encouraged to verify important academic information with their teachers.</li>
+            </ol>
+
+            <h2>V. Learning Materials and Content</h2>
+            <ol>
+                <li>Learning materials may be uploaded or shared by administrators and users.</li>
+                <li>Users may only upload materials that they created themselves or are legally authorized to share.</li>
+                <li>Uploading copyrighted content without permission, including scanned textbooks, answer keys, or protected materials, is prohibited.</li>
+                <li>Users retain ownership of content they create and upload.</li>
+                <li>By submitting content to PALs, users grant PALs permission to display and distribute that content within the platform for educational purposes.</li>
+                <li>PALs reserves the right to remove materials that violate these Terms and Conditions.</li>
+            </ol>
+
+            <h2>VI. Matching System</h2>
+            <ol>
+                <li>PALs uses an automated matching system to recommend tutors and study groups based on information such as academic needs, subject preferences, learning preferences, availability, and other relevant profile data.</li>
+                <li>Matching results are recommendations only and do not guarantee compatibility, availability, or successful learning outcomes.</li>
+                <li>Users are encouraged to keep their profiles updated to improve recommendation quality.</li>
+                <li>PALs does not guarantee that a tutor or study group will be available for every subject or request.</li>
+            </ol>
+
+            <h2>VII. Session Scheduling and Attendance</h2>
+            <ol>
+                <li>Users are encouraged to follow agreed tutoring and study group schedules.</li>
+                <li>Users should provide advance notice whenever possible if they need to cancel or reschedule a session.</li>
+                <li>Repeated failure to attend scheduled sessions without reasonable notice may result in a review of the user's account activity.</li>
+                <li>PALs provides scheduling support but does not guarantee participation by any user.</li>
+            </ol>
+
+            <h2>VIII. Communication and Chat Monitoring</h2>
+            <ol>
+                <li>Messages and communications on PALs must remain academic, respectful, and appropriate.</li>
+                <li>Users should not share personal information such as home addresses, phone numbers, passwords, social media accounts, or other sensitive data.</li>
+                <li>PALs may use automated filtering and monitoring tools to detect:
+                    <ul>
+                        <li>Profanity or inappropriate language;</li>
+                        <li>Personal information;</li>
+                        <li>Harassment or prohibited content;</li>
+                        <li>Other violations of these Terms.</li>
+                    </ul>
+                </li>
+                <li>Content flagged by the system may be reviewed by authorized administrators for investigation and enforcement purposes.</li>
+                <li>Users are encouraged to report inappropriate behavior rather than respond with similar conduct.</li>
+            </ol>
+
+            <h2>IX. Privacy and Data Collection</h2>
+            <ol>
+                <li>PALs collects information necessary to provide its services, including account information, profile details, subject preferences, availability, session activity, and feedback.</li>
+                <li>The platform may record activity such as logins, session participation, feature usage, matching attempts, and communication records.</li>
+                <li>Collected data shall be used only for:
+                    <ul>
+                        <li>Operating and improving the platform;</li>
+                        <li>Monitoring platform effectiveness;</li>
+                        <li>Conducting the approved research study associated with PALs.</li>
+                    </ul>
+                </li>
+                <li>Personal information shall be handled responsibly and in accordance with the Data Privacy Act of 2012 and applicable school policies.</li>
+                <li>Access to collected data shall be limited to authorized researchers, system administrators, and designated STI College Cubao personnel when necessary.</li>
+                <li>Participation in the one-month monitoring phase of the research study is voluntary and requires a separate informed consent process.</li>
+                <li>Users may decline participation in the monitoring phase without losing access to the standard PALs platform.</li>
+                <li>Users are responsible for exercising caution when sharing information with others on the platform.</li>
+            </ol>
+
+            <h2>X. Feedback and Reporting</h2>
+            <ol>
+                <li>Users are encouraged to provide honest and constructive feedback regarding tutoring sessions, study groups, and platform services.</li>
+                <li>Feedback must be truthful, respectful, and based on actual experiences.</li>
+                <li>False reports, fraudulent reviews, or intentionally misleading feedback are prohibited.</li>
+                <li>Reports concerning misconduct, policy violations, or technical issues may be reviewed by authorized administrators.</li>
+            </ol>
+
+            <h2>XI. Violations and Enforcement</h2>
+            <ol>
+                <li>PALs administrators may investigate reported or suspected violations of these Terms.</li>
+                <li>Depending on the severity and frequency of violations, PALs may:
+                    <ul>
+                        <li>Issue a warning;</li>
+                        <li>Remove content;</li>
+                        <li>Restrict specific platform features;</li>
+                        <li>Temporarily suspend account access; or</li>
+                        <li>Permanently revoke access to the platform.</li>
+                    </ul>
+                </li>
+                <li>Serious violations may include, but are not limited to:
+                    <ul>
+                        <li>Harassment, bullying, or threats;</li>
+                        <li>Academic dishonesty or cheating;</li>
+                        <li>Sharing personal information without consent;</li>
+                        <li>Distribution of harmful files or malicious content;</li>
+                        <li>Repeated violations of these Terms;</li>
+                        <li>Account impersonation or unauthorized access.</li>
+                    </ul>
+                </li>
+                <li>When appropriate and permitted by school policy, serious incidents may be referred to designated STI College Cubao authorities for further review.</li>
+                <li>For users who are minors, parents or guardians may be informed when necessary and permitted by applicable policies.</li>
+            </ol>
+
+            <h2>XII. Website Availability and Technical Issues</h2>
+            <ol>
+                <li>PALs is provided on an "as available" basis.</li>
+                <li>The platform may occasionally experience maintenance, technical issues, errors, interruptions, or periods of downtime.</li>
+                <li>The development team will make reasonable efforts to maintain platform functionality and address technical concerns.</li>
+                <li>PALs does not guarantee uninterrupted access or error-free operation at all times.</li>
+                <li>Users are encouraged to report technical problems through designated support channels.</li>
+            </ol>
+
+            <h2>XIII. Limitations of Liability</h2>
+            <ol>
+                <li>PALs is intended to supplement academic learning and does not replace classroom instruction, teachers, official course materials, or school guidance.</li>
+                <li>PALs does not guarantee improved grades, academic performance, successful tutoring outcomes, or specific educational results.</li>
+                <li>Learning outcomes depend on the effort, participation, and cooperation of all users.</li>
+                <li>PALs shall not be responsible for inaccuracies in user-generated content, tutor advice, or learning materials shared by users.</li>
+            </ol>
+
+            <h2>XIV. Amendments to These Terms</h2>
+            <ol>
+                <li>The PALs development team may modify these Terms and Conditions when necessary to improve the platform or comply with legal, research, or institutional requirements.</li>
+                <li>Users will be notified of significant changes and may be required to review and accept the updated Terms before continuing to use the platform.</li>
+            </ol>
+
+            <h2>XV. Acceptance of Terms</h2>
+            <p>By selecting the acceptance checkbox, registering an account, logging in, or using PALs, you acknowledge that you have read, understood, and agreed to these Terms and Conditions. If you do not agree, you must not access or use the platform.</p>
+        </article>
+        <button class="login-submit terms-close" id="closeTermsConfirm" type="button">Close</button>
+    </dialog>
+
+    <main class="page-shell">
+        <section class="banner" aria-labelledby="banner-title">
+            <div class="banner-copy">
+                <p class="eyebrow">STI College Cubao · Senior High School</p>
+                <h1 id="banner-title">Learn better, together.</h1>
+                <p class="banner-description">Find support, share what you know, and make every learning moment count with PALs.</p>
+                <a class="banner-link" href="PALs.html">
+                    Explore PALs
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        </section>
+
+        <section class="about" aria-labelledby="about-title">
+            <div>
+                <p class="eyebrow eyebrow-accent">A little about us</p>
+                <h2 id="about-title">A stronger community starts with helping each other.</h2>
+            </div>
+            <div class="about-copy">
+                <p>PALs, or the Peer-Assisted Learning System, brings students together to make learning more collaborative and welcoming.</p>
+                <p>Whether you are looking for guidance or ready to share your strengths, PALs helps you connect with classmates and discover useful learning resources.</p>
+                <div class="about-note">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M19 8v6"/>
+                        <path d="M22 11h-6"/>
+                    </svg>
+                    <span>Learn from one another. Grow together.</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="page-shell">PALs · Peer-Assisted Learning System</footer>
+    <script href="JS/LOGIN.js"></script>
+</body>
+</html>
