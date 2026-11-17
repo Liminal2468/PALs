@@ -1,82 +1,57 @@
-# Mentos Learning Platform
+# Mentos HOST
 
-Mentos is a learning-platform starter project. The frontend is served by Vite
-from `public/`; the Flask application is in `api/`. A host-side DB client and
-Node.js database API are scaffolded under `api/` and `../server/database`.
-When data routes are wired, the Node.js service will validate short-lived
-host-issued JWTs before querying MariaDB. MariaDB is provisioned separately.
+Mentos is the PALs HOST application, now initialized as an ASP.NET Core .NET
+10 project targeting CLI version `10.0.400`.
 
-## Frontend
+## Structure
 
-- [`public/index.html`](public/index.html) now serves the PALs dashboard at `/`.
-- The integrated dashboard assets are [`public/styles/Pals.css`](public/styles/Pals.css),
-  [`public/scripts/pals.js`](public/scripts/pals.js), and [`public/pages/`](public/pages/).
-  The PALs stylesheet and script were copied from `PALs/PALs/` without visual
-  edits; the existing navigation loads each page into the dashboard.
-- [`public/styles/base.css`](public/styles/base.css) and
-  [`public/styles/values.css`](public/styles/values.css) remain available for
-  the rest of the site.
-- [`public/scripts/base.js`](public/scripts/base.js) remains available but is
-  not loaded by the PALs dashboard entry page.
-- [`public/components/login/modal.login.htm`](public/components/login/modal.login.htm) is the standalone login-modal preview. It loads enabled HOST providers from `/api/v1/auth/options` and submits admin credentials to the HOST API; provider login remains subject to deployment configuration.
+- [`public/`](public/) contains the preserved PALs frontend.
+- [`Program.cs`](Program.cs) configures the HOST listener and static files.
+- [`Controllers/`](Controllers/) exposes the `/api/v1` frontend façade. Business
+  data is requested from DBSERV over the private `DBSERV_URL` connection and
+  authenticated with `HOST_SHARED_KEY`.
+- [`Mentos.Host.csproj`](Mentos.Host.csproj) is the .NET project entrypoint.
 
-The frontend entry route is `/`. There is no `game.html` route.
-The former menu and generic modal demo pages were removed; the login component is the retained modal example.
+The old Python/Flask and Node/Vite runtime files were removed from the active
+HOST tree after the Node-line archive was created.
 
-## API and database client
-
-- [`api/src/api/app.py`](api/src/api/app.py) creates the Waitress-served Flask HOST API at `/api/v1`; current routes are documented in [`api/README.md`](api/README.md).
-- [`api/src/api/sessions.py`](api/src/api/sessions.py) stores opaque browser sessions server-side in MariaDB; provider login and admin credential routes are documented in [`api/README.md`](api/README.md).
-- [`api/src/api/db/db.py`](api/src/api/db/db.py) provides JWT-authenticated create, read, update, aggregation, and delete requests.
-- `api/.env` configures the database API origin as `DBSERV_URL` (without the `/db` suffix), JWT issuer/audience, private-key path, key ID, and token lifetime. The deprecated `HOST` origin setting remains a warning-producing fallback during migration.
-- [`api/src/api/enrollment.py`](api/src/api/enrollment.py) contains placeholder functions for class/group enrollment, tutee sign-up, and tutor assignment.
-- [`api/utils/clearcache.py`](api/utils/clearcache.py) clears Python cache files.
-
-See [`../server/database/README.md`](../server/database/README.md) for the
-database server setup, JWT key-rotation process, and request/response contract.
-The API host and route prefixes are listed in [`../server/README.md`](../server/README.md).
-Keep the host signing private key outside source control and configure
-`JWT_PRIVATE_KEY_PATH` to its secure location.
-
-## Development
-
-Start the Vite frontend and HOST API as separate processes with one command:
+## Run locally
 
 ```bash
-cd mentos
-npm install
-uv sync --project api
+cp config.example.yaml config.yaml
+# Set HOST_SHARED_KEY in config.yaml to match DBSERV.
 ./run
 ```
 
-`run` launches `npm run dev` and `uv run --project api api` as separate
-processes, forwarding both services' output to the terminal. Press Ctrl-C to
-stop both. Vite serves the frontend on port 5173 and proxies `/api` requests to
-the HOST API on `127.0.0.1:8000`.
+The default listener is `http://127.0.0.1:8000`. Override it with
+`BIND_ADDRESS` and `PORT`, or set them in `config.yaml`. `DBSERV_URL` and
+`HOST_SHARED_KEY` are also read from that file. Blank or omitted values are
+ignored, and existing process environment values take precedence.
 
-To install or refresh Python dependencies separately:
+The browser interface is served from `public/` by ASP.NET Core. The API route
+contract remains under `/api/v1`:
 
-```bash
-uv sync --project api
-```
+- `/api/v1/health`
+- `/api/v1/session`
+- `/api/v1/auth/*`
+- `/api/v1/me`
+- `/api/v1/learning-requests`
+- `/api/v1/tutors` and `/api/v1/tutees`
+- `/api/v1/sessions`
+- `/api/v1/resources`
+- `/api/v1/feedback` and `/api/v1/support`
+- `/api/v1/analytics/*`
+- `/api/v1/dashboard`
+- `/api/v1/schedule`
+- `/api/v1/rec-peer-tutor`
 
-Node.js 20+ and Python 3.12+ are required.
+Tutor recommendations remain deliberately unavailable until `/connect` and its
+matching algorithm are approved. The longer recommendation paths remain
+compatibility aliases for the canonical `/rec-peer-tutor` path.
 
-### Host API runner
+## Recovery
 
-The cross-platform runner checks DBSERV's public `/db/health` liveness route
-and its JWT-protected `/db/health/database` readiness route through the Python
-DB client before starting Flask. It retries three times, then suspends startup
-and repeats the check every 60 seconds until DBSERV is ready. The Flask
-`/api/v1/health` route reports only `ready` or `degraded` and caches the result
-for five seconds.
-
-- Linux Bash: `bash bin/run` (or `./bin/run`)
-- Linux/POSIX `sh`: `sh bin/run.sh` (or `./bin/run.sh`)
-- Windows PowerShell: `.\bin\run.ps1`
-- Windows Command Prompt: `bin\run.bin`
-
-The health checks use the same `DBSERV_URL` configuration as the Python DB
-client; there is no localhost:8100 fallback. The API-only runner starts Flask
-only. Use `./run` for the one-command local development experience that starts
-both Vite and HOST API.
+The previous HOST implementation is preserved in
+[`bindoc/build/v2-nodeline/mentos.tar.gz`](../bindoc/build/v2-nodeline/mentos.tar.gz).
+Its renamed documentation is under
+[`bindoc/build/v2-nodeline/builddocs/`](../bindoc/build/v2-nodeline/builddocs/).

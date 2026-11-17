@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0057a8">
+    <title>PALs API | Developer login</title>
+    <link rel="stylesheet" href="styles/login.css">
+</head>
+<body>
+    <header class="page-shell topbar">
+        <div class="brand">
+            <img src="z/pals.png" alt="PALs">
+            <span class="brand-name">PALs API</span>
+        </div>
+        <div class="header-actions">
+            <nav class="utility-links" aria-label="Support">
+                <a class="utility-link" href="contactsupport.html">Contact support</a>
+                <a class="utility-link" href="faqs.html">FAQs</a>
+            </nav>
+            <button class="login-link" id="loginTrigger" type="button" aria-haspopup="dialog" aria-controls="loginDialog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                    <path d="m10 17 5-5-5-5"/>
+                    <path d="M15 12H3"/>
+                </svg>
+                Log in
+            </button>
+        </div>
+    </header>
+
+    <dialog class="login-dialog" id="loginDialog" aria-labelledby="loginDialogTitle" aria-describedby="loginDialogDescription">
+        <div class="dialog-header">
+            <div>
+                <h2 id="loginDialogTitle">Sign in to PALs API</h2>
+                <p id="loginDialogDescription">Use an authorized developer account.</p>
+            </div>
+            <button class="dialog-close" id="closeLoginDialog" type="button" aria-label="Close login options">&times;</button>
+        </div>
+        <div class="login-choice-list" id="loginChoices">
+            <button class="login-choice login-choice-admin" id="adminLoginChoice" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3 4.5 6v5.5c0 4.7 3.2 7.8 7.5 9.5 4.3-1.7 7.5-4.8 7.5-9.5V6L12 3Z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
+                <span>Developer log in</span>
+            </button>
+        </div>
+        <form class="login-form" id="adminLoginForm" novalidate hidden>
+            <button class="login-back" type="button">← Login options</button>
+            <label for="adminEmail">Developer school email</label>
+            <input class="school-email" id="adminEmail" name="email" type="email" autocomplete="username" placeholder="developer@cubao.sti.edu.ph" aria-describedby="adminEmailHint adminEmailError adminLoginStatus" required>
+            <p class="email-hint" id="adminEmailHint">Use an authorized @cubao.sti.edu.ph or @pals.me account.</p>
+            <p class="email-error" id="adminEmailError" aria-live="polite"></p>
+            <label for="adminPassword">Password</label>
+            <input class="school-email" id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+            <button class="login-submit" type="submit" disabled>Developer log in</button>
+            <p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>
+        </form>
+    </dialog>
+
+    <script src="scripts/login.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0057a8">
+    <meta name="description" content="Get help with your PALs account, tutoring sessions, or technical issues.">
+    <title>Contact support | PALs</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #0057a8;
+            --blue-dark: #06477f;
+            --yellow: #f4c300;
+            --page: #f0f4f8;
+            --surface: #fff;
+            --ink: #1a1a1a;
+            --muted: #5a6a7a;
+            --border: #d0dae5;
+            --link: #464feb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: var(--page);
+            color: var(--ink);
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--link);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        button:focus-visible {
+            outline: 3px solid var(--yellow);
+            outline-offset: 3px;
+        }
+
+        .site-header {
+            display: flex;
+            min-height: 74px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 8px clamp(16px, 4vw, 48px);
+            border-top: 6px solid var(--yellow);
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .brand {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 12px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .brand img {
+            display: block;
+            width: 40px;
+            height: 40px;
+            flex: 0 0 auto;
+            object-fit: contain;
+        }
+
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: clamp(14px, 3vw, 28px);
+        }
+
+        .header-links a {
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .header-links a:hover {
+            color: var(--yellow);
+        }
+
+        main {
+            display: grid;
+            width: min(100% - 32px, 1040px);
+            grid-template-columns: minmax(0, 0.85fr) minmax(320px, 1.15fr);
+            gap: clamp(28px, 5vw, 64px);
+            align-items: start;
+            margin: 0 auto;
+            padding: clamp(38px, 7vw, 72px) 0 80px;
+        }
+
+        .intro {
+            grid-column: 1 / -1;
+            margin-bottom: -10px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--blue);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--blue-dark);
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
+            letter-spacing: -0.045em;
+            line-height: 1.1;
+        }
+
+        .intro-copy {
+            max-width: 680px;
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .support-info h2,
+        .contact-card h2 {
+            margin: 0 0 14px;
+            color: var(--blue-dark);
+            font-size: 1.35rem;
+            line-height: 1.3;
+        }
+
+        .support-info > p {
+            margin: 0 0 22px;
+            color: var(--muted);
+        }
+
+        .support-options {
+            display: grid;
+            gap: 12px;
+        }
+
+        .support-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--surface);
+        }
+
+        .support-icon {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 10px;
+            background: #e4eef7;
+            color: var(--blue);
+        }
+
+        .support-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .support-option h3 {
+            margin: 0;
+            color: var(--ink);
+            font-size: 0.98rem;
+        }
+
+        .support-option p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .support-option a {
+            font-weight: 700;
+        }
+
+        .response-note {
+            margin: 18px 0 0;
+            padding: 14px 16px;
+            border-left: 4px solid var(--yellow);
+            border-radius: 7px;
+            background: #fff8d8;
+            color: #514700;
+            font-size: 0.9rem;
+        }
+
+        .contact-card {
+            padding: clamp(20px, 4vw, 30px);
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--yellow);
+            border-radius: 13px;
+            background: var(--surface);
+            box-shadow: 0 8px 24px rgb(22 46 72 / 6%);
+        }
+
+        .contact-card h2 {
+            margin-bottom: 6px;
+        }
+
+        .form-intro {
+            margin: 0 0 20px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .contact-form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .form-field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .form-field label {
+            color: var(--blue-dark);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 12px;
+            border: 1px solid #aebdcb;
+            border-radius: 8px;
+            background: #fff;
+            color: var(--ink);
+            font: inherit;
+        }
+
+        .form-field textarea {
+            min-height: 132px;
+            resize: vertical;
+        }
+
+        .form-hint,
+        .form-status {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.83rem;
+        }
+
+        .form-status {
+            color: var(--blue-dark);
+        }
+
+        .submit-button {
+            min-height: 46px;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--blue);
+            color: #fff;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+        }
+
+        .submit-button:hover {
+            background: var(--blue-dark);
+        }
+
+        .submit-button:disabled {
+            background: #9aabba;
+            cursor: not-allowed;
+        }
+
+        .privacy-note {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.82rem;
+        }
+
+        footer {
+            padding: 20px 16px 28px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.88rem;
+            text-align: center;
+        }
+
+        @media (max-width: 760px) {
+            main {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .intro {
+                margin-bottom: -6px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .site-header {
+                min-height: 66px;
+                gap: 12px;
+                padding-inline: 14px;
+            }
+
+            .brand {
+                gap: 8px;
+                font-size: 0.88rem;
+            }
+
+            .brand img {
+                width: 34px;
+                height: 34px;
+            }
+
+            .header-links {
+                gap: 12px;
+            }
+
+            .header-links a {
+                font-size: 0.82rem;
+            }
+
+            main {
+                width: calc(100% - 28px);
+                padding-top: 38px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="index.html" aria-label="PALs home">
+            <img src="z/pals.png" alt="">
+            <span>PALs</span>
+        </a>
+        <nav class="header-links" aria-label="Main navigation">
+            <a href="index.html">Home</a>
+            <a href="faqs.html">FAQs</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="intro" aria-labelledby="page-title">
+            <p class="eyebrow">Help center</p>
+            <h1 id="page-title">Contact support</h1>
+            <p class="intro-copy">Need a hand with PALs? Choose the kind of help you need or send the support team a message. Please don't include your password or other sensitive information.</p>
+        </section>
+
+        <section class="support-info" aria-labelledby="support-options-title">
+            <h2 id="support-options-title">How can we help?</h2>
+            <p>For a faster resolution, include the page or feature involved and what happened. You can also check the FAQs for quick answers.</p>
+
+            <div class="support-options">
+                <article class="support-option">
+                    <span class="support-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/>
+                            <path d="m3 7 9 6 9-6"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h3>Account and sign-in help</h3>
+                        <p>For school-account access or password issues, use your official school account recovery or contact STI eLMS support.</p>
+                    </div>
+                </article>
+                <article class="support-option">
+                    <span class="support-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3a9 9 0 0 0-9 9v5a2 2 0 0 0 2 2h2v-7H5a7 7 0 0 1 14 0h-2v7h2a2 2 0 0 0 2-2v-5a9 9 0 0 0-9-9Z"/>
+                            <path d="M18 19c-.8 1.3-2.2 2-4 2h-2"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h3>PALs technical or account issue</h3>
+                        <p>Use the message form to describe a PALs feature that isn't working, an incorrect profile detail, or another platform concern.</p>
+                    </div>
+                </article>
+                <article class="support-option">
+                    <span class="support-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
+                            <path d="M12 17h.01"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h3>Common questions</h3>
+                        <p>Browse account, matching, session, safety, privacy, and troubleshooting guidance in the <a href="faqs.html">PALs FAQs</a>.</p>
+                    </div>
+                </article>
+            </div>
+
+            <p class="response-note"><strong>Safety:</strong> If you are reporting inappropriate behavior, share only the details needed to identify the incident. Don't include passwords, home addresses, or unrelated personal information.</p>
+        </section>
+
+        <section class="contact-card" aria-labelledby="message-title">
+            <h2 id="message-title">Send a support message</h2>
+            <p class="form-intro">Describe the issue and provide a school email where the team can reach you.</p>
+            <form class="contact-form" id="supportForm">
+                <div class="form-field">
+                    <label for="supportName">Name</label>
+                    <input id="supportName" name="name" autocomplete="name" required>
+                </div>
+                <div class="form-field">
+                    <label for="supportEmail">School email</label>
+                    <input id="supportEmail" name="email" type="email" autocomplete="email" placeholder="name@cubao.sti.edu.ph" aria-describedby="emailHint" required>
+                    <p class="form-hint" id="emailHint">Use your official @cubao.sti.edu.ph account.</p>
+                </div>
+                <div class="form-field">
+                    <label for="supportTopic">What do you need help with?</label>
+                    <select id="supportTopic" name="topic" required>
+                        <option value="">Select a topic</option>
+                        <option>Sign-in or account access</option>
+                        <option>Profile information</option>
+                        <option>Tutoring or matching</option>
+                        <option>Sessions or scheduling</option>
+                        <option>Chat or user safety</option>
+                        <option>Technical problem or bug</option>
+                        <option>Privacy or research monitoring</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="supportMessage">Message</label>
+                    <textarea id="supportMessage" name="message" maxlength="2000" placeholder="Tell us what happened and which page or feature you were using." required></textarea>
+                </div>
+                <button class="submit-button" type="submit">Submit support request</button>
+                <p class="privacy-note">Do not include your password or other sensitive personal information.</p>
+                <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+
+    <footer>PALs · Peer-Assisted Learning System</footer>
+
+    <script>
+        const supportForm = document.getElementById("supportForm");
+        const supportEmail = document.getElementById("supportEmail");
+        const formStatus = document.getElementById("formStatus");
+        const submitButton = supportForm.querySelector(".submit-button");
+
+        supportForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const email = supportEmail.value.trim();
+
+            if (!supportEmail.validity.valid || !email.toLowerCase().endsWith("@cubao.sti.edu.ph")) {
+                supportEmail.setCustomValidity("Use a valid @cubao.sti.edu.ph school email.");
+                supportEmail.reportValidity();
+                return;
+            }
+
+            supportEmail.setCustomValidity("");
+            submitButton.disabled = true;
+            formStatus.textContent = "The support form is not connected to a ticketing or email service yet, so your message has not been sent. Please contact the designated PALs support team through your school's approved channel.";
+        });
+
+        supportEmail.addEventListener("input", () => {
+            supportEmail.setCustomValidity("");
+            submitButton.disabled = false;
+            formStatus.textContent = "";
+        });
+    </script>
+</body>
+</html>

@@ -1,5 +1,12 @@
 # Mentos HOST change log
 
+## 2026-11-15 — Repair local executable permissions before startup
+
+- **Files changed:** `mentos/bin/permchk`, `mentos/run`
+- **Summary:** Added the Bash `perm_check(FILE)` helper and made the combined launcher repair missing execute bits for the installed Vite shims and the API virtual environment's `api` and `python` entry points before startup. The helper checks each supplied path and runs `chmod +x` only when it is not executable.
+- **Verification:** `bash -n mentos/bin/permchk mentos/run`, helper smoke test with a temporary file, and `git diff --check` passed. No `mentos/public/` files were changed.
+- **Defaults / unverified:** Dependency trees remain ignored local installation state; the launcher only repairs the known executable entry points and does not chmod every file under `node_modules` or `.venv`.
+
 ## 2026-11-03 — Normalize the DBSERV Serve origin
 
 - **Files changed:** `mentos/api/.env.example`, `mentos/api/README.md`, `mentos/api/utils/dbflow.md`, `bindoc/filels.md`

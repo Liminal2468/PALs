@@ -1,4 +1,59 @@
- <!-- Top bar -->
-        <div class="topbar">
-            <div class="topbar-title">Peer-Assisted Learning System</div>
-        </div>
+<div class="topbar">
+    <div><div class="topbar-title">Community feedback</div><div class="topbar-sub">Share ideas and help improve PALs</div></div>
+    <div class="topbar-actions"><button class="btn-primary" type="button" data-toggle-feedback-form>Share feedback</button></div>
+</div>
+
+<div class="sub-content">
+    <section class="feedback-intro panel">
+        <div><p class="page-eyebrow">Your voice matters</p><h1>Feedback forum</h1><p class="page-description">Suggest improvements, share ideas, or report a general experience. Keep posts respectful and never include passwords or private information.</p></div>
+        <div class="feedback-stats"><strong data-feedback-count>3</strong><span>community ideas</span></div>
+    </section>
+
+    <section class="feedback-composer panel" data-feedback-composer hidden aria-labelledby="feedbackFormTitle">
+        <div class="panel-heading"><div><h2 id="feedbackFormTitle">Start a discussion</h2><p>Add a concise title and explain your suggestion.</p></div><button class="icon-button" type="button" data-toggle-feedback-form aria-label="Close feedback form">&times;</button></div>
+        <form class="app-form" data-feedback-form>
+            <label>Title<input name="title" maxlength="100" required placeholder="What would you like to improve?"></label>
+            <label>Category
+                <select name="category" required>
+                    <option value="">Select a category</option>
+                    <option>Feature idea</option><option>Learning resources</option><option>Matching and tutoring</option><option>Sessions and scheduling</option><option>Accessibility</option><option>Other</option>
+                </select>
+            </label>
+            <label>Details<textarea name="description" rows="4" maxlength="1000" required placeholder="Share the context and how this could help students."></textarea></label>
+            <p class="form-status" data-feedback-status role="status" aria-live="polite"></p>
+            <div class="form-actions"><button class="btn-ghost" type="button" data-toggle-feedback-form>Cancel</button><button class="btn-primary" type="submit">Post feedback</button></div>
+        </form>
+    </section>
+
+    <div class="feedback-board-layout">
+        <section class="feedback-board">
+            <div class="section-header"><div><h2 class="section-title">Recent ideas</h2><p class="topbar-sub">Vote for suggestions you find helpful.</p></div>
+                <label class="feedback-filter-label">Filter
+                    <select data-feedback-filter aria-label="Filter feedback by category">
+                        <option value="all">All topics</option><option>Feature idea</option><option>Learning resources</option><option>Matching and tutoring</option><option>Sessions and scheduling</option><option>Accessibility</option><option>Other</option>
+                    </select>
+                </label>
+            </div>
+            <div class="feedback-list" data-feedback-list aria-live="polite">
+                <article class="feedback-card" data-feedback-id="demo-study-reminders" data-category="Feature idea">
+                    <button class="feedback-vote" type="button" data-feedback-vote aria-label="Vote for Study session reminders"><span aria-hidden="true">▲</span><strong data-vote-count>12</strong><span>votes</span></button>
+                    <div class="feedback-card-body"><div class="feedback-card-meta"><span class="tag blue">Feature idea</span><span>Sample idea</span></div><h3>Study session reminders</h3><p>A reminder before a scheduled tutoring session could help everyone arrive prepared and on time.</p><div class="feedback-card-footer">Posted by PALs team · Demo content</div></div>
+                </article>
+                <article class="feedback-card" data-feedback-id="demo-resource-tags" data-category="Learning resources">
+                    <button class="feedback-vote" type="button" data-feedback-vote aria-label="Vote for Resource tags by subject"><span aria-hidden="true">▲</span><strong data-vote-count>8</strong><span>votes</span></button>
+                    <div class="feedback-card-body"><div class="feedback-card-meta"><span class="tag teal">Learning resources</span><span>Sample idea</span></div><h3>Resource tags by subject</h3><p>Subject and strand tags could make it easier to find notes and study materials relevant to each class.</p><div class="feedback-card-footer">Posted by PALs team · Demo content</div></div>
+                </article>
+                <article class="feedback-card" data-feedback-id="demo-accessibility" data-category="Accessibility">
+                    <button class="feedback-vote" type="button" data-feedback-vote aria-label="Vote for More display and accessibility options"><span aria-hidden="true">▲</span><strong data-vote-count>5</strong><span>votes</span></button>
+                    <div class="feedback-card-body"><div class="feedback-card-meta"><span class="tag purple">Accessibility</span><span>Sample idea</span></div><h3>More display and accessibility options</h3><p>Additional text-size controls and clearer keyboard navigation could help more students use PALs comfortably.</p><div class="feedback-card-footer">Posted by PALs team · Demo content</div></div>
+                </article>
+                <p class="empty-state" data-feedback-empty hidden>No feedback posts in this category yet.</p>
+            </div>
+        </section>
+        <aside class="feedback-guidelines panel">
+            <h2>Posting guidelines</h2>
+            <ul><li>Be constructive and respectful.</li><li>Describe the student need your idea addresses.</li><li>Do not post personal or sensitive information.</li><li>Report safety concerns privately through <a href="ContactSupport.html">Contact support</a>, not in the forum.</li></ul>
+            <p class="demo-note">New posts and votes are saved in this browser for this demo. They are not yet shared with other users.</p>
+        </aside>
+    </div>
+</div>

@@ -1,106 +1,151 @@
-<!-- Topbar with actions -->
-        <div class="topbar">
-            <div>
-                <div class="topbar-title">Find a tutor</div>
-                <div class="topbar-sub">Matched subjects</div>
-            </div>
-            <div class="topbar-actions">
-                <div class="toggle-wrap">
-                    <button class="btn-ghost">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sliders-horizontal-icon lucide-sliders-horizontal"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
-                        <span class="txt-ghost">Filters</span>
-                    </button>
-                    <button class="btn-primary">
-                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M6 1v10M1 6h10"/>
-                        </svg>
-                        <span class="txt-primary">Session</span>
-                    </button>
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Find a peer tutor</div>
+        <div class="topbar-sub">Explore student tutors by subject and availability</div>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn-ghost" type="button" data-navigate="pages/sessions.html">My sessions</button>
+    </div>
+</div>
+
+<div class="sub-content">
+    <section class="tutor-intro panel">
+        <div>
+            <p class="page-eyebrow">Learn together</p>
+            <h1>Find the right study partner</h1>
+            <p class="page-description">Browse sample peer tutor profiles, filter by subject, and send a session request. Matching and availability are demo examples until connected to PALs services.</p>
+        </div>
+        <div class="tutor-intro-stat"><strong data-tutor-count>5</strong><span>peer tutors</span></div>
+    </section>
+
+    <section class="tutor-search-panel panel" aria-label="Find tutors">
+        <div class="tutor-search-grid">
+            <label class="tutor-search-field">Search tutors or subjects
+                <input type="search" data-tutor-search placeholder="Try a name, subject, or strand" autocomplete="off">
+            </label>
+            <label class="tutor-search-field">Subject
+                <select data-tutor-subject>
+                    <option value="all">All subjects</option>
+                    <option value="programming">Programming</option>
+                    <option value="math">Mathematics</option>
+                    <option value="science">Science</option>
+                    <option value="research">Research</option>
+                    <option value="self-improvement">Self improvement</option>
+                    <option value="humanities">Humanities</option>
+                </select>
+            </label>
+            <label class="tutor-search-field">Availability
+                <select data-tutor-availability>
+                    <option value="all">Any availability</option>
+                    <option value="now">Available now</option>
+                    <option value="today">Available today</option>
+                    <option value="scheduled">Schedule ahead</option>
+                </select>
+            </label>
+            <label class="tutor-search-field">Sort by
+                <select data-tutor-sort>
+                    <option value="match">Best match</option>
+                    <option value="rating">Highest rated</option>
+                    <option value="name">Name A–Z</option>
+                </select>
+            </label>
+        </div>
+        <div class="tutor-result-line"><span data-tutor-results role="status" aria-live="polite">Showing 5 peer tutors</span><button class="text-button" type="button" data-tutor-reset>Clear filters</button></div>
+        <p class="form-status form-status-error" data-tutor-favorite-status role="alert" hidden></p>
+    </section>
+
+    <section class="tutor-results" aria-label="Peer tutor results">
+        <div class="tutor-grid tutor-directory" data-tutor-list>
+            <article class="tutor-card tutor-directory-card featured" data-tutor-card data-subjects="programming,self-improvement" data-availability="now" data-match="99" data-rating="4.9" data-name="Janine Berdin">
+                <div class="t-av blue">JB</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Janine Berdin</h2><button class="favorite-button" type="button" data-tutor-favorite="janine-berdin" aria-pressed="false" aria-label="Save Janine Berdin to favorites">☆</button></div>
+                    <div class="t-meta"><span class="stars" aria-label="Rated 4.9 out of 5">★★★★★</span> 4.9 <span><span class="avail-dot"></span>Available now</span></div>
+                    <p class="tutor-bio">Enjoys breaking programming concepts into small, practical examples and helping classmates build confidence through practice.</p>
+                    <div class="t-tags"><span class="tag blue">Computer/Web Programming 4</span><span class="tag blue">Mobile App Programming 2</span><span class="tag teal">Self Improvement</span></div>
+                    <div class="tutor-extra" data-tutor-extra hidden><strong>Study approach</strong><p>Bring a question or a small coding exercise. Sessions focus on guided problem-solving and learning the reasoning behind each step.</p><span>Sample profile · ICT strand</span></div>
                 </div>
-            </div>
+                <div class="tutor-card-actions"><span class="mbadge high">99% match</span><button class="text-button" type="button" data-tutor-details>About tutor</button><button class="req-btn" type="button" data-request-tutor="Janine Berdin">Request session</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card" data-tutor-card data-subjects="programming,science,research" data-availability="today" data-match="96" data-rating="4.7" data-name="John Michael Howell">
+                <div class="t-av teal">JH</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">John Michael Howell</h2><button class="favorite-button" type="button" data-tutor-favorite="john-michael-howell" aria-pressed="false" aria-label="Save John Michael Howell to favorites">☆</button></div>
+                    <div class="t-meta"><span class="stars" aria-label="Rated 4.7 out of 5">★★★★★</span> 4.7 <span><span class="avail-dot"></span>Available today</span></div>
+                    <p class="tutor-bio">Likes connecting science topics to everyday examples and helping students plan research questions and projects.</p>
+                    <div class="t-tags"><span class="tag blue">Computer/Web Programming 4</span><span class="tag teal">Physics</span><span class="tag purple">Practical Research 1</span></div>
+                    <div class="tutor-extra" data-tutor-extra hidden><strong>Study approach</strong><p>Sessions start with your learning goal, then work through an example or outline together. Bring class notes or the topic you are reviewing.</p><span>Sample profile · STEM strand</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">96% match</span><button class="text-button" type="button" data-tutor-details>About tutor</button><button class="req-btn" type="button" data-request-tutor="John Michael Howell">Request session</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card" data-tutor-card data-subjects="programming,math,humanities" data-availability="scheduled" data-match="88" data-rating="4.5" data-name="Minju Park">
+                <div class="t-av purple">MP</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Minju Park</h2><button class="favorite-button" type="button" data-tutor-favorite="minju-park" aria-pressed="false" aria-label="Save Minju Park to favorites">☆</button></div>
+                    <div class="t-meta"><span class="stars" aria-label="Rated 4.5 out of 5">★★★★☆</span> 4.5 <span>Next opening: Wed, 3 PM</span></div>
+                    <p class="tutor-bio">A patient study partner who enjoys reviewing programming fundamentals and discussing social science topics.</p>
+                    <div class="t-tags"><span class="tag blue">Mobile App Programming 2</span><span class="tag teal">Mathematics</span><span class="tag purple">Understanding Culture, Society, and Politics</span></div>
+                    <div class="tutor-extra" data-tutor-extra hidden><strong>Study approach</strong><p>Prefers short topic reviews followed by practice questions and time for you to explain what you have learned.</p><span>Sample profile · ICT strand</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">88% match</span><button class="text-button" type="button" data-tutor-details>About tutor</button><button class="req-btn" type="button" data-request-tutor="Minju Park">Request session</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card" data-tutor-card data-subjects="math,science" data-availability="today" data-match="84" data-rating="4.8" data-name="Arielle Santos">
+                <div class="t-av blue">AS</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Arielle Santos</h2><button class="favorite-button" type="button" data-tutor-favorite="arielle-santos" aria-pressed="false" aria-label="Save Arielle Santos to favorites">☆</button></div>
+                    <div class="t-meta"><span class="stars" aria-label="Rated 4.8 out of 5">★★★★★</span> 4.8 <span><span class="avail-dot"></span>Available today</span></div>
+                    <p class="tutor-bio">Enjoys explaining math and science step by step, with a focus on practice problems and exam preparation.</p>
+                    <div class="t-tags"><span class="tag teal">General Mathematics</span><span class="tag teal">Chemistry</span><span class="tag blue">Statistics and Probability</span></div>
+                    <div class="tutor-extra" data-tutor-extra hidden><strong>Study approach</strong><p>Work through sample problems together, identify which steps need practice, then make a quick review plan.</p><span>Sample profile · STEM strand</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">84% match</span><button class="text-button" type="button" data-tutor-details>About tutor</button><button class="req-btn" type="button" data-request-tutor="Arielle Santos">Request session</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card" data-tutor-card data-subjects="research,humanities" data-availability="now" data-match="81" data-rating="4.6" data-name="Rafael Dizon">
+                <div class="t-av teal">RD</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Rafael Dizon</h2><button class="favorite-button" type="button" data-tutor-favorite="rafael-dizon" aria-pressed="false" aria-label="Save Rafael Dizon to favorites">☆</button></div>
+                    <div class="t-meta"><span class="stars" aria-label="Rated 4.6 out of 5">★★★★★</span> 4.6 <span><span class="avail-dot"></span>Available now</span></div>
+                    <p class="tutor-bio">Happy to collaborate on research planning, writing structure, and reviewing social science concepts.</p>
+                    <div class="t-tags"><span class="tag purple">Practical Research 1</span><span class="tag purple">Oral Communication</span><span class="tag teal">Understanding Culture, Society, and Politics</span></div>
+                    <div class="tutor-extra" data-tutor-extra hidden><strong>Study approach</strong><p>Bring your draft, outline, or topic. Sessions focus on organizing ideas and understanding assignment requirements.</p><span>Sample profile · HUMSS strand</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">81% match</span><button class="text-button" type="button" data-tutor-details>About tutor</button><button class="req-btn" type="button" data-request-tutor="Rafael Dizon">Request session</button></div>
+            </article>
         </div>
+        <p class="empty-state" data-tutor-empty hidden>No tutors match those filters. Try a different subject or clear your search.</p>
+    </section>
 
-<!-- Content area -->
-        <!-- Tutor search bar -->
+    <p class="demo-note tutor-demo-note">Tutor profiles, ratings, match percentages, and availability are sample content for this demo. Session requests are saved only in this browser.</p>
+</div>
 
-            <!-- Tutor cards grid. To edit. -->
-            <div class="tutor-grid">
-          <div class="tutor-card featured">
-            <div class="t-av blue">PA</div>
-            <div>
-              <div class="t-name">Prince Alfred Mosante</div>
-              <div class="t-meta">
-                <span class="stars">★★★★★</span> 4.9
-                <span><span class="avail-dot"></span>Available now</span>
-              </div>
-              <div class="t-tags">
-                <span class="tag blue">Computer/Web Programming 4</span>
-                <span class="tag blue">Mobile App Programming 2</span>
-                <span class="tag teal">Self Improvement</span>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-              <span class="mbadge high">99% match</span>
-              <button class="req-btn">Request session</button>
-            </div>
-          </div>
-
-          <div class="tutor-card">
-            <div class="t-av teal">NN</div>
-            <div>
-              <div class="t-name">Nesabel Nicart</div>
-              <div class="t-meta">
-                <span class="stars">★★★★★</span> 4.7
-                <span><span class="avail-dot"></span>Available today</span>
-              </div>
-              <div class="t-tags">
-                <span class="tag blue">Computer/Web Programming 4</span>
-                <span class="tag teal">Physics</span>
-                <span class="tag purple">Practical Research 1</span>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-              <span class="mbadge med">96% match</span>
-              <button class="req-btn">Request session</button>
-            </div>
-          </div>
-
-          <div class="tutor-card">
-            <div class="t-av purple">DP</div>
-            <div>
-              <div class="t-name">Darniel Prince Joe Egenias</div>
-              <div class="t-meta">
-                <span class="stars">★★★★</span> 4.5
-                <span style="color:var(--text-secondary)">Next: Wed 3 PM</span>
-              </div>
-              <div class="t-tags">
-                <span class="tag blue">Mobile App Programming 2</span>
-                <span class="tag purple">Understanding Culture, Society, and Politics</span>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-              <span class="mbadge med">88% match</span>
-              <button class="req-btn">Request session</button>
-            </div>
-          </div>
+<dialog class="app-dialog" data-request-dialog aria-labelledby="requestDialogTitle">
+    <form class="app-form" data-request-form>
+        <div class="dialog-heading">
+            <div><h2 id="requestDialogTitle">Request a tutoring session</h2><p data-request-tutor-label></p></div>
+            <button class="icon-button" type="button" data-close-dialog aria-label="Close">&times;</button>
         </div>
-
-        <div class="upcoming">
-          <div class="upcoming-title">Upcoming sessions</div>
-          <div class="session-item">
-            <div class="sess-dot" style="background:#378ADD"></div>
-            <div class="sess-info">Self Improvement with Prince Alfred Mosante</div>
-            <div class="sess-time">Today, 4:00 PM</div>
-          </div>
-          <div class="session-item">
-            <div class="sess-dot" style="background:#5DCAA5"></div>
-            <div class="sess-info">Chemistry with Nesabel Nicart</div>
-            <div class="sess-time">Thu, 2:30 PM</div>
-          </div>
-          <div class="session-item">
-            <div class="sess-dot" style="background:#AFA9EC"></div>
-            <div class="sess-info">Mobile App Programming 2 with Darniel Prince Joe Egenias</div>
-            <div class="sess-time">Wed, 3:00 PM</div>
-          </div>
-        </div>
-        </div>
+        <input type="hidden" name="tutorId" data-request-tutor-id>
+        <label>Subject
+            <select name="subject" required>
+                <option value="">Choose a subject</option>
+                <option>Computer/Web Programming 4</option>
+                <option>Mobile App Programming 2</option>
+                <option>General Mathematics</option>
+                <option>Statistics and Probability</option>
+                <option>Physics</option>
+                <option>Chemistry</option>
+                <option>Practical Research 1</option>
+                <option>Understanding Culture, Society, and Politics</option>
+                <option>Other</option>
+            </select>
+        </label>
+        <label>Preferred date and time<input name="preferredTime" type="datetime-local" required></label>
+        <label>Note for the tutor <span class="field-optional">(optional)</span><textarea name="note" rows="3" maxlength="500" placeholder="What would you like help with?"></textarea></label>
+        <p class="form-status" data-request-status role="status" aria-live="polite"></p>
+        <div class="form-actions"><button class="btn-ghost" type="button" data-close-dialog>Cancel</button><button class="btn-primary" type="submit">Send request</button></div>
+    </form>
+</dialog>

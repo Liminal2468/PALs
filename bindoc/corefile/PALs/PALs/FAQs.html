@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0057a8">
+    <meta name="description" content="Find answers to common questions about PALs, accounts, tutoring, privacy, and technical support.">
+    <title>FAQs | PALs</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #0057a8;
+            --blue-dark: #06477f;
+            --yellow: #f4c300;
+            --page: #f0f4f8;
+            --surface: #fff;
+            --ink: #1a1a1a;
+            --muted: #5a6a7a;
+            --border: #d0dae5;
+            --link: #464feb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: var(--page);
+            color: var(--ink);
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--link);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        a:focus-visible,
+        input:focus-visible,
+        summary:focus-visible {
+            outline: 3px solid var(--yellow);
+            outline-offset: 3px;
+        }
+
+        .site-header {
+            display: flex;
+            min-height: 74px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 8px clamp(16px, 4vw, 48px);
+            border-top: 6px solid var(--yellow);
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .brand {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 12px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .brand img {
+            display: block;
+            width: 40px;
+            height: 40px;
+            flex: 0 0 auto;
+            object-fit: contain;
+        }
+
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: clamp(14px, 3vw, 28px);
+        }
+
+        .header-links a {
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .header-links a:hover {
+            color: var(--yellow);
+        }
+
+        main {
+            width: min(100% - 32px, 920px);
+            margin: 0 auto;
+            padding: clamp(38px, 7vw, 72px) 0 80px;
+        }
+
+        .intro {
+            margin-bottom: 30px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--blue);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--blue-dark);
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
+            letter-spacing: -0.045em;
+            line-height: 1.1;
+        }
+
+        .intro-copy {
+            max-width: 620px;
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .search-wrap {
+            position: relative;
+            margin: 26px 0 34px;
+        }
+
+        .search-wrap svg {
+            position: absolute;
+            top: 50%;
+            left: 16px;
+            width: 20px;
+            height: 20px;
+            color: var(--muted);
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+
+        #faqSearch {
+            width: 100%;
+            min-height: 54px;
+            padding: 12px 16px 12px 46px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--ink);
+            font: inherit;
+            box-shadow: 0 4px 14px rgb(22 46 72 / 5%);
+        }
+
+        #faqSearch:focus-visible {
+            border-color: var(--blue);
+            outline-color: rgb(0 87 168 / 28%);
+        }
+
+        .faq-count {
+            min-height: 1.4em;
+            margin: -22px 0 22px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .faq-category {
+            margin: 0 0 26px;
+            padding: 22px clamp(16px, 4vw, 28px);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface);
+            box-shadow: 0 8px 24px rgb(22 46 72 / 5%);
+        }
+
+        .faq-category h2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 8px;
+            color: var(--blue-dark);
+            font-size: clamp(1.12rem, 3vw, 1.32rem);
+            line-height: 1.35;
+        }
+
+        .category-mark {
+            width: 9px;
+            height: 9px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: var(--yellow);
+            box-shadow: 0 0 0 4px rgb(244 195 0 / 18%);
+        }
+
+        .faq-item {
+            border-top: 1px solid #e8edf2;
+        }
+
+        .faq-item summary {
+            position: relative;
+            display: flex;
+            min-height: 56px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 14px 34px 14px 0;
+            color: var(--ink);
+            cursor: pointer;
+            font-size: 0.98rem;
+            font-weight: 700;
+            list-style: none;
+        }
+
+        .faq-item summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .faq-item summary::after {
+            position: absolute;
+            right: 3px;
+            color: var(--blue);
+            content: "+";
+            font-size: 1.5rem;
+            font-weight: 400;
+            line-height: 1;
+        }
+
+        .faq-item[open] summary::after {
+            content: "−";
+        }
+
+        .faq-item summary:hover {
+            color: var(--blue);
+        }
+
+        .faq-answer {
+            max-width: 50em;
+            padding: 0 18px 18px 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .faq-answer p {
+            margin: 0;
+        }
+
+        .faq-answer ul {
+            display: grid;
+            gap: 6px;
+            margin: 8px 0 0;
+            padding-left: 22px;
+        }
+
+        .no-results {
+            padding: 26px;
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .contact-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-top: 34px;
+            padding: 22px clamp(18px, 4vw, 30px);
+            border-left: 5px solid var(--yellow);
+            border-radius: 10px;
+            background: #e4eef7;
+        }
+
+        .contact-card h2 {
+            margin: 0;
+            color: var(--blue-dark);
+            font-size: 1.12rem;
+        }
+
+        .contact-card p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .contact-link {
+            display: inline-flex;
+            min-height: 42px;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 16px;
+            border-radius: 8px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .contact-link:hover {
+            background: var(--blue-dark);
+            text-decoration: none;
+        }
+
+        footer {
+            padding: 20px 16px 28px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.88rem;
+            text-align: center;
+        }
+
+        @media (max-width: 560px) {
+            .site-header {
+                min-height: 66px;
+                gap: 12px;
+                padding-inline: 14px;
+            }
+
+            .brand {
+                gap: 8px;
+                font-size: 0.88rem;
+            }
+
+            .brand img {
+                width: 34px;
+                height: 34px;
+            }
+
+            .header-links {
+                gap: 12px;
+            }
+
+            .header-links a {
+                font-size: 0.82rem;
+            }
+
+            main {
+                width: calc(100% - 28px);
+                padding-top: 38px;
+            }
+
+            .faq-category {
+                padding: 18px 16px;
+            }
+
+            .faq-item summary {
+                font-size: 0.94rem;
+            }
+
+            .contact-card {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .contact-link {
+                align-self: flex-start;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="Login.html" aria-label="PALs home">
+            <img src="z/PALs.png" alt="">
+            <span>PALs</span>
+        </a>
+        <nav class="header-links" aria-label="Main navigation">
+            <a href="Login.html">Login</a>
+            <a href="ContactSupport.html">Contact support</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="intro" aria-labelledby="page-title">
+            <p class="eyebrow">Help center</p>
+            <h1 id="page-title">Frequently asked questions</h1>
+            <p class="intro-copy">Find quick answers about PALs, your account, tutoring, privacy, and getting support.</p>
+        </section>
+
+        <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input id="faqSearch" type="search" placeholder="Search questions…" aria-label="Search frequently asked questions">
+        </div>
+        <p class="faq-count" id="faqCount" aria-live="polite"></p>
+
+        <section class="faq-category" aria-labelledby="about-pals">
+            <h2 id="about-pals"><span class="category-mark" aria-hidden="true"></span>About PALs</h2>
+            <details class="faq-item"><summary>What is PALs?</summary><div class="faq-answer"><p>PALs stands for Peer-Assisted Learning. It is a web application designed to help Senior High School students of STI College Cubao find tutors and study partners based on their academic needs, subjects, and availability.</p></div></details>
+            <details class="faq-item"><summary>Who can use PALs?</summary><div class="faq-answer"><p>PALs is intended for Senior High School students in Grades 11 and 12 currently enrolled at STI College Cubao.</p></div></details>
+            <details class="faq-item"><summary>Is PALs free to use?</summary><div class="faq-answer"><p>PALs is designed as an academic support platform for STI College Cubao students. Any fees or charges, if introduced in the future, will be clearly announced.</p></div></details>
+            <details class="faq-item"><summary>Do I need to download an application?</summary><div class="faq-answer"><p>No. PALs is a website that can be accessed using an internet browser on a phone, tablet, laptop, or desktop computer.</p></div></details>
+            <details class="faq-item"><summary>Does PALs replace our teachers or eLMS?</summary><div class="faq-answer"><p>No. PALs is an additional learning tool. It helps students learn from one another but does not replace teachers, classroom lessons, or the official STI eLMS.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="account">
+            <h2 id="account"><span class="category-mark" aria-hidden="true"></span>Account and registration</h2>
+            <details class="faq-item"><summary>How do I create an account?</summary><div class="faq-answer"><p>Visit the PALs website and select the registration or login option. Use your official STI College Cubao eLMS school account to access the platform.</p></div></details>
+            <details class="faq-item"><summary>Can I use my personal Gmail or another email account?</summary><div class="faq-answer"><p>No. PALs only accepts official STI College Cubao eLMS accounts for account validation.</p></div></details>
+            <details class="faq-item"><summary>Why can't I log in to my account?</summary><div class="faq-answer"><p>Check that you entered the correct school account and password, and make sure your internet connection is working. If you still cannot log in, contact the appropriate support personnel.</p></div></details>
+            <details class="faq-item"><summary>What should I do if I forget my password?</summary><div class="faq-answer"><p>Use the available password recovery option through your official school account or contact the appropriate STI eLMS support personnel.</p></div></details>
+            <details class="faq-item"><summary>Can I use someone else's account?</summary><div class="faq-answer"><p>No. Each user must access PALs using their own official school account. Sharing accounts is not allowed.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="matching">
+            <h2 id="matching"><span class="category-mark" aria-hidden="true"></span>Tutor and tutee matching</h2>
+            <details class="faq-item"><summary>How does the matching system work?</summary><div class="faq-answer"><p>PALs uses an algorithm that checks information such as subject needs, academic level, learning preferences, and availability to recommend suitable tutors or study groups.</p></div></details>
+            <details class="faq-item"><summary>Can I choose whether to become a tutor or tutee?</summary><div class="faq-answer"><p>Yes. Your profile information and selected role help the system identify whether you are looking for academic assistance or willing to provide it.</p></div></details>
+            <details class="faq-item"><summary>What if I cannot find a tutor for my subject?</summary><div class="faq-answer"><p>There may be no available tutor for that subject at the moment. You can try again later or check whether other students have similar subjects or topics available.</p></div></details>
+            <details class="faq-item"><summary>Why was I matched with someone from a different strand?</summary><div class="faq-answer"><p>PALs considers academic needs, subject knowledge, and compatibility rather than focusing only on strands. This allows students from different strands to learn from one another when their academic needs match.</p></div></details>
+            <details class="faq-item"><summary>Can I change my matching preferences?</summary><div class="faq-answer"><p>Yes. You may update your profile information, subject preferences, and availability through the available profile settings.</p></div></details>
+            <details class="faq-item"><summary>Does the matching system guarantee the best tutor for me?</summary><div class="faq-answer"><p>No. The algorithm provides recommendations based on available information. The final learning experience still depends on the compatibility and cooperation of the students.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="sessions">
+            <h2 id="sessions"><span class="category-mark" aria-hidden="true"></span>Sessions and study groups</h2>
+            <details class="faq-item"><summary>How do I schedule a tutoring session?</summary><div class="faq-answer"><p>After finding a suitable match, coordinate with the other student and use the available scheduling features to arrange a session.</p></div></details>
+            <details class="faq-item"><summary>What if my tutor does not attend the scheduled session?</summary><div class="faq-answer"><p>You may contact your tutor through the platform to ask for an update. If the tutor does not respond or repeatedly misses sessions, you may report the situation.</p></div></details>
+            <details class="faq-item"><summary>Can I cancel or reschedule a session?</summary><div class="faq-answer"><p>Yes. Inform the other participants as early as possible and arrange another schedule that works for everyone.</p></div></details>
+            <details class="faq-item"><summary>Can I join a study group instead of one-on-one tutoring?</summary><div class="faq-answer"><p>Yes. PALs is designed to support both individual tutoring and group-based learning, depending on the available features and matches.</p></div></details>
+            <details class="faq-item"><summary>What if I do not understand the tutor's explanation?</summary><div class="faq-answer"><p>You can politely ask the tutor to explain the topic again or provide another example. You may also look for another suitable tutor if needed.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="safety">
+            <h2 id="safety"><span class="category-mark" aria-hidden="true"></span>Chat and user safety</h2>
+            <details class="faq-item"><summary>Can I talk about personal matters with other users?</summary><div class="faq-answer"><p>PALs is intended for academic communication only. Avoid sharing personal matters, private details, or information unrelated to learning.</p></div></details>
+            <details class="faq-item"><summary>Why was my message flagged or blocked?</summary><div class="faq-answer"><p>Your message may have contained profanity, personal information, inappropriate language, or other content that goes against the platform's rules.</p></div></details>
+            <details class="faq-item"><summary>What should I do if another user sends inappropriate messages?</summary><div class="faq-answer"><p>Do not respond with offensive messages. Report the user or conversation through the available reporting feature so the authorized team can review the situation.</p></div></details>
+            <details class="faq-item"><summary>Can I share pictures, links, or learning materials?</summary><div class="faq-answer"><p>Academic-related materials may be shared if the feature is available and the content is safe, appropriate, and allowed by the platform.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="privacy">
+            <h2 id="privacy"><span class="category-mark" aria-hidden="true"></span>Privacy and research monitoring</h2>
+            <details class="faq-item"><summary>Does PALs collect my information?</summary><div class="faq-answer"><p>Yes. PALs needs basic account and profile information to provide its features, such as matching, scheduling, and user management.</p></div></details>
+            <details class="faq-item"><summary>Does PALs monitor my activities?</summary><div class="faq-answer"><p>The platform may record certain activities, such as login frequency, features accessed, session duration, matching attempts, and peer interactions, for system evaluation and improvement.</p></div></details>
+            <details class="faq-item"><summary>Is participation in the one-month monitoring phase required?</summary><div class="faq-answer"><p>No. The one-month monitoring phase is voluntary. Students must provide separate informed consent before participating.</p></div></details>
+            <details class="faq-item"><summary>Will my information be shared with other students?</summary><div class="faq-answer"><p>Your account and private information should not be shared with other users without a valid reason and proper permission. Avoid including personal information in public profiles or chats.</p></div></details>
+            <details class="faq-item"><summary>Can I stop participating in the research monitoring phase?</summary><div class="faq-answer"><p>Yes. Participation in the monitoring phase is voluntary. You may communicate your decision to withdraw to the research team. Your request will be handled according to the study's informed consent and data handling procedures.</p></div></details>
+        </section>
+
+        <section class="faq-category" aria-labelledby="technical">
+            <h2 id="technical"><span class="category-mark" aria-hidden="true"></span>Technical support and common problems</h2>
+            <details class="faq-item"><summary>Why is the website loading slowly?</summary><div class="faq-answer"><p>This may happen because of a weak internet connection, heavy website traffic, or temporary system issues. Try refreshing the page or reconnecting to the internet.</p></div></details>
+            <details class="faq-item"><summary>What should I do if the website suddenly stops working?</summary><div class="faq-answer"><p>Refresh the page and try logging in again. If the problem continues, report it to the appropriate support personnel.</p></div></details>
+            <details class="faq-item"><summary>Why are some features not showing or working?</summary><div class="faq-answer"><p>Some features may be unavailable because of maintenance, system errors, or temporary technical problems. Try again later.</p></div></details>
+            <details class="faq-item"><summary>What should I do if my profile information is incorrect?</summary><div class="faq-answer"><p>Open your profile settings and update the incorrect information if editing is available. If you cannot change it, contact the support team.</p></div></details>
+            <details class="faq-item"><summary>Why can't I send a message?</summary><div class="faq-answer"><p>Check your internet connection and make sure your message follows the chat guidelines. Your message may also be temporarily blocked if it contains inappropriate words or personal information.</p></div></details>
+            <details class="faq-item"><summary>What if I experience an error while scheduling a session?</summary><div class="faq-answer"><p>Check whether your selected schedule is valid and whether the system is working properly. Refresh the page and try again. If the problem continues, report the error.</p></div></details>
+            <details class="faq-item"><summary>What should I do if I encounter a bug or unexpected error?</summary><div class="faq-answer"><p>Take note of what happened, including the page or feature you were using, and report the issue to the development or support team. Avoid repeatedly submitting the same action if it causes errors.</p></div></details>
+            <details class="faq-item"><summary>Can I access PALs using my phone?</summary><div class="faq-answer"><p>Yes. PALs is designed to work through web browsers on different internet-connected devices. However, some features may appear differently depending on your screen size and browser.</p></div></details>
+            <details class="faq-item"><summary>Who should I contact if I need help?</summary><div class="faq-answer"><p>You may contact the designated PALs development or support team through the contact information provided on the website.</p></div></details>
+        </section>
+
+        <p class="no-results" id="noResults" hidden>No questions match that search. Try another word or phrase.</p>
+
+        <aside class="contact-card" aria-label="Additional help">
+            <div>
+                <h2>Still need help?</h2>
+                <p>Reach out to the PALs support team for assistance.</p>
+            </div>
+            <a class="contact-link" href="ContactSupport.html">Contact support</a>
+        </aside>
+    </main>
+
+    <footer>PALs · Peer-Assisted Learning System</footer>
+
+    <script>
+        const faqSearch = document.getElementById("faqSearch");
+        const faqCategories = [...document.querySelectorAll(".faq-category")];
+        const faqItems = [...document.querySelectorAll(".faq-item")];
+        const faqCount = document.getElementById("faqCount");
+        const noResults = document.getElementById("noResults");
+
+        function filterFaqs() {
+            const query = faqSearch.value.trim().toLocaleLowerCase();
+            let visibleCount = 0;
+
+            faqCategories.forEach((category) => {
+                const items = [...category.querySelectorAll(".faq-item")];
+                let categoryCount = 0;
+
+                items.forEach((item) => {
+                    const matches = item.textContent.toLocaleLowerCase().includes(query);
+                    item.hidden = !matches;
+                    if (matches) {
+                        categoryCount += 1;
+                        visibleCount += 1;
+                    } else {
+                        item.open = false;
+                    }
+                });
+
+                category.hidden = categoryCount === 0;
+            });
+
+            faqCount.textContent = query
+                ? `${visibleCount} ${visibleCount === 1 ? "question" : "questions"} found`
+                : `${faqItems.length} questions across ${faqCategories.length} topics`;
+            noResults.hidden = visibleCount > 0;
+        }
+
+        faqSearch.addEventListener("input", filterFaqs);
+        filterFaqs();
+    </script>
+</body>
+</html>

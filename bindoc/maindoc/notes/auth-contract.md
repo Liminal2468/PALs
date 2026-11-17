@@ -195,6 +195,7 @@ Expected auth error codes:
 |---|---|---|
 | 400 | `bad_request` / `invalid_request` | Missing or invalid input |
 | 401 | `invalid_credentials` | Provider or admin authentication failed |
+| 401 | `account_not_recognized` | User identity is not an authorized `LASTNAME.STUID@cubao.sti.edu.ph` account or the STUID has fewer than six digits |
 | 401 | `signup_required` | No pending signup is stored in this session |
 | 403 | `account_inactive` | Provider identity belongs to a non-active account |
 | 403 | `forbidden` | DBSERV auth endpoint received no valid HOST JWT or the token lacks a route capability |

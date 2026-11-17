@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+perm_check() {
+  local FILE="${1:?FILE is required}"
+
+  if [[ ! -e "$FILE" && ! -L "$FILE" ]]; then
+    printf 'File not found: %s\n' "$FILE" >&2
+    return 1
+  fi
+
+  if [[ ! -x "$FILE" ]]; then
+    chmod +x -- "$FILE"
+  fi
+}
+
+if (($# == 0)); then
+  printf 'Usage: %s FILE [...]\n' "${0##*/}" >&2
+  exit 2
+fi
+
+for FILE in "$@"; do
+  perm_check "$FILE"
+done

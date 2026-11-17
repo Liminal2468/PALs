@@ -1,0 +1,28 @@
+[Unit]
+Description=PALs Developer Web Interface
+Wants=network-online.target
+After=network-online.target palsys.service
+
+[Service]
+Type=simple
+User=palsys
+Group=palsys
+WorkingDirectory=/opt/palsys/server
+Environment=NODE_ENV=production
+Environment=DEV_API_TARGET=http://127.0.0.1:8432
+ExecStart=/usr/local/bin/npm run start:web
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,12 +1,21 @@
 # Project context
 
-Research background, proposal findings, proposed scope, methodology, references, and
-open questions for PALs are recorded in [notes/projectnotes.md](notes/projectnotes.md).
-Use that note as context when making future product or API decisions; distinguish
-proposal statements from implementation decisions and unresolved research questions.
+PALs is a peer-assisted learning platform for STI College Cubao senior high
+school students. The active implementation is split into two applications:
 
-## Glossary
+- **MENTOS HOST** — `mentos/`, an ASP.NET Core .NET 10 application serving the
+  preserved frontend and the client-facing `/api/v1` contract.
+- **DBSERV** — `server/`, a separate ASP.NET Core .NET 10 application for the
+  general database service and preserved service prefixes.
 
-- **CLIENT:** A student, tutor, tutee, teacher, or administrator using the learning platform.
-- **HOST:** The Mentos machine and Flask API. It is the only service that calls DBSERV and the privacy boundary for CLIENT-facing data.
-- **DBSERV:** The database API service on apmain. It validates HOST-issued JWTs and manages database access; CLIENTs do not connect to it directly.
+MENTOS is the privacy boundary for browser clients. Browsers call MENTOS only;
+MENTOS will call DBSERV through a restricted backend client. DBSERV must never
+receive browser database credentials.
+
+The database schemas are temporarily preserved in
+[build/v2-nodeline/builddocs/schemas/](../build/v2-nodeline/builddocs/schemas/)
+while the general database model is designed. The public route structures are
+preserved during the migration.
+
+For implementation research and unresolved product questions, see
+[notes/projectnotes.md](notes/projectnotes.md).

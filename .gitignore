@@ -8,6 +8,16 @@ wheels/
 .venv
 node_modules/
 
+# .NET build output
+**/obj/
+mentos/bin/Debug/
+server/bin/
+
 # Local database signing keys and developer environment
 .env
 .keys/
+/server/config.yaml
+/mentos/config.yaml
+
+# misc
+ho/

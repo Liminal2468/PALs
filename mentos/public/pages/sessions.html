@@ -1,4 +1,70 @@
- <!-- Top bar -->
-        <div class="topbar">
-            <div class="topbar-title">Peer-Assisted Learning System</div>
+<div class="topbar">
+    <div>
+        <div class="topbar-title">My learning sessions</div>
+        <div class="topbar-sub">Keep track of session requests and your study schedule</div>
+    </div>
+    <div class="topbar-actions"><button class="btn-primary" type="button" data-navigate="pages/tutors.html">Find a tutor</button></div>
+</div>
+
+<div class="sub-content">
+    <section class="session-intro panel">
+        <div>
+            <p class="page-eyebrow">Plan your learning</p>
+            <h1>Sessions and requests</h1>
+            <p class="page-description">Review your pending tutor requests, upcoming study sessions, and completed demo sessions in one place.</p>
         </div>
+        <div class="session-demo-label"><span class="avail-dot"></span>Demo schedule</div>
+    </section>
+
+    <section class="stats-row session-stats" aria-label="Session summary">
+        <article class="stat"><div class="stat-label">Pending requests</div><div class="stat-val" data-session-stat="requested">0</div><div class="stat-delta">Waiting for a response</div></article>
+        <article class="stat"><div class="stat-label">Upcoming sessions</div><div class="stat-val" data-session-stat="upcoming">3</div><div class="stat-delta">Your next study plans</div></article>
+        <article class="stat"><div class="stat-label">Completed</div><div class="stat-val" data-session-stat="completed">0</div><div class="stat-delta">Sessions in this demo</div></article>
+        <article class="stat"><div class="stat-label">Cancelled</div><div class="stat-val" data-session-stat="cancelled">0</div><div class="stat-delta">Cancelled in this demo</div></article>
+    </section>
+
+    <section class="sessions-panel panel" aria-labelledby="sessionsListTitle">
+        <div class="section-header sessions-heading">
+            <div><h2 class="section-title" id="sessionsListTitle">Your schedule</h2><p class="topbar-sub">Tutor requests appear here after you send one.</p></div>
+            <label class="session-filter-label">Show
+                <select data-session-filter aria-label="Filter sessions">
+                    <option value="all">All sessions</option>
+                    <option value="requested">Pending requests</option>
+                    <option value="upcoming">Upcoming</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </label>
+        </div>
+        <p class="form-status form-status-error" data-session-status-message role="alert" hidden></p>
+        <div class="session-list" data-session-list aria-live="polite">
+            <article class="session-card" data-session-card data-session-id="demo-session-self-improvement" data-status="upcoming" data-demo-session>
+                <div class="session-date-block"><span>Today</span><strong>4:00</strong><small>PM</small></div>
+                <div class="session-card-main">
+                    <div class="session-card-top"><span class="tag blue">Self Improvement</span><span class="session-status" data-session-status-label>Upcoming</span></div>
+                    <h3>Self Improvement</h3><p>Peer tutor: Prince Alfred Mosante</p><p class="session-card-note">A sample session from the PALs demo schedule.</p>
+                </div>
+                <div class="session-card-actions"><button class="text-button" type="button" data-session-action="complete">Mark complete</button><button class="text-button danger-text" type="button" data-session-action="cancel">Cancel</button></div>
+            </article>
+            <article class="session-card" data-session-card data-session-id="demo-session-chemistry" data-status="upcoming" data-demo-session>
+                <div class="session-date-block"><span>Thu</span><strong>2:30</strong><small>PM</small></div>
+                <div class="session-card-main">
+                    <div class="session-card-top"><span class="tag teal">Chemistry</span><span class="session-status" data-session-status-label>Upcoming</span></div>
+                    <h3>Chemistry review</h3><p>Peer tutor: Nesabel Nicart</p><p class="session-card-note">A sample session from the PALs demo schedule.</p>
+                </div>
+                <div class="session-card-actions"><button class="text-button" type="button" data-session-action="complete">Mark complete</button><button class="text-button danger-text" type="button" data-session-action="cancel">Cancel</button></div>
+            </article>
+            <article class="session-card" data-session-card data-session-id="demo-session-mobile-apps" data-status="upcoming" data-demo-session>
+                <div class="session-date-block"><span>Wed</span><strong>3:00</strong><small>PM</small></div>
+                <div class="session-card-main">
+                    <div class="session-card-top"><span class="tag purple">Mobile App Programming 2</span><span class="session-status" data-session-status-label>Upcoming</span></div>
+                    <h3>Mobile App Programming 2</h3><p>Peer tutor: Darniel Prince Joe Egenias</p><p class="session-card-note">A sample session from the PALs demo schedule.</p>
+                </div>
+                <div class="session-card-actions"><button class="text-button" type="button" data-session-action="complete">Mark complete</button><button class="text-button danger-text" type="button" data-session-action="cancel">Cancel</button></div>
+            </article>
+            <p class="empty-state" data-session-empty hidden>No sessions in this view yet. Find a tutor to send a request.</p>
+        </div>
+    </section>
+
+    <p class="demo-note session-demo-note">This schedule and the session controls are local demo data. Requests are not delivered to tutors, and session changes are not synced to an account.</p>
+</div>

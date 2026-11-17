@@ -80,15 +80,14 @@ DB_PORT=3306
 DB_USER=dbpals
 DB_PASSWORD="REPLACE_WITH_THE_SAME_SECRET_SET_FOR_DBPALS"
 DB_NAME=palsysdb
-DB_ALLOWED_TABLES=your_table_names
 ```
 
 Replace the `DB_PASSWORD` placeholder with the password configured in
-MariaDB. Replace `your_table_names` with a comma-separated allowlist of
-existing table names, for example `students,groups` only if those tables
-exist in the schema.
-The API rejects resources not listed here. Keep the password quoted if it
+MariaDB. The API rejects resources not listed here. Keep the password quoted if it
 contains characters that dotenv might interpret as syntax.
+
+> [!NOTE]
+> The tables in `DB_ALLOWED_TABLES` are preset tables that are aligned with the current schema version. Use comma's to add more tables.
 
 Before starting the API, verify the account can connect over TCP; `-p` prompts
 for the password without placing it in the command:

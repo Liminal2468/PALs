@@ -1,5 +1,5 @@
 [Unit]
-Description=PALs API Server
+Description=PALs DBSERV ASP.NET Core API
 Wants=network-online.target mariadb.service
 After=network-online.target mariadb.service
 
@@ -8,10 +8,12 @@ Type=simple
 User=palsys
 Group=palsys
 WorkingDirectory=/opt/palsys/server
-Environment=NODE_ENV=production
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=BIND_ADDRESS=127.0.0.1
 Environment=PORT=8432
-ExecStart=/opt/palsys/server/run
+Environment=DATA_PROTECTION_KEY_PATH=/opt/palsys/server/storage/dataprotection
+ExecStart=/opt/palsys/server/publish/Palsys.Server
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=30s
@@ -19,6 +21,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
+ReadWritePaths=/opt/palsys/server/storage
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

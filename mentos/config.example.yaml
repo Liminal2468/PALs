@@ -1,0 +1,10 @@
+# Copy this file to mentos/config.yaml for local development.
+# Blank or omitted values are ignored. Process environment values take precedence.
+
+BIND_ADDRESS: 127.0.0.1 # VALUE: loopback address or an explicitly trusted bind address
+PORT: 8000 # VALUE: an unused TCP port, for example 8000
+DBSERV_URL: http://127.0.0.1:8432 # VALUE: the private DBSERV HTTP origin
+HOST_SHARED_KEY: replace-with-the-matching-private-DBSERV-key # VALUE: the same private key configured by DBSERV
+
+DOTNET_ENVIRONMENT: Development # VALUE: Development, Staging, or Production
+ASPNETCORE_ENVIRONMENT: Development # VALUE: Development, Staging, or Production

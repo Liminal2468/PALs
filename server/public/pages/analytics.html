@@ -1,0 +1,31 @@
+<div class="topbar">
+    <div>
+        <div class="topbar-title">API telemetry</div>
+        <div class="topbar-sub">Developer view of database health and request instrumentation</div>
+    </div>
+    <div class="topbar-actions">
+        <button class="btn-ghost" type="button" data-telemetry-refresh>Refresh health</button>
+    </div>
+</div>
+
+<div class="sub-content telemetry-page">
+    <div data-telemetry-metrics></div>
+    <section class="home-section" aria-labelledby="databaseHealthTitle">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title" id="databaseHealthTitle">Database health</h2>
+                <p class="topbar-sub">Live liveness check through the API service.</p>
+            </div>
+        </div>
+        <div data-telemetry-health></div>
+    </section>
+    <section class="home-section" aria-labelledby="trafficTelemetryTitle">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title" id="trafficTelemetryTitle">Request telemetry</h2>
+                <p class="topbar-sub">Read/write and API traffic counters are ready for instrumentation.</p>
+            </div>
+        </div>
+        <div data-telemetry-traffic></div>
+    </section>
+</div>

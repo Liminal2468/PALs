@@ -132,3 +132,46 @@
 - **Summary:** Clarified that Mentos uses `https://palsys.softshell-grue.ts.net` as `DBSERV_URL` for server-to-server DB and auth API calls. The browser-facing HOST callback remains on `https://reime.softshell-grue.ts.net`.
 - **Verification:** Searched the active setup and contract docs for the old HOST/DBSERV hostname mix-up; `git diff --check` passed.
 - **Defaults / unverified:** This changes examples and documentation only. No real HOST `.env`, Funnel setting, or remote service configuration was changed or inspected.
+
+## 2026-11-15 — Deploy developer API interface to apmain
+
+- **Files synchronized:** Local `server/` directory to `root@apmain:/opt/palsys/server`, including the developer interface under `server/public`, Vite configuration, package metadata, authentication policy changes, and launcher updates. Local `node_modules`, environment files, provider configuration, and key directories were excluded; remote files were not deleted.
+- **Launcher permissions:** Marked `server/run` and `server/src/run` executable so the existing `palsys.service` unit can spawn the runner.
+- **Verification:** Restarted `palsys.service`; it is active with the runner and API child process. Remote `http://127.0.0.1:8432/db/health` returned `{"service":"database","status":"alive"}`.
+
+## 2026-11-15 — Set developer interface port to 5060
+
+- **Files changed:** `server/vite.config.js`
+- **Summary:** Changed the developer Vite interface port from 5174 to 5060, synchronized the `server/` directory to apmain, and restarted `palsys.service`. The REST API systemd listener remains on 8432; the current Tailscale Serve mapping continues to proxy the tailnet hostname to 8432.
+- **Verification:** The remote service is active, local API health returned alive, and `https://palsys.softshell-grue.ts.net/db/health` returned HTTP 200 with `{"service":"database","status":"alive"}`. The hostname root returns the expected API `not_found` response because no root REST route exists.
+
+## 2026-11-15 — Document runner entrypoint and service ports
+
+- **Files changed:** `server/src/runner.js`, `bindoc/maindoc/ports.md`
+- **Summary:** Documented that the runner starts `src/server.js`, which imports and binds the Express app exported by `src/app.js`; `app.js` is not launched as a second process. Added the server and Mentos API/web application port table.
+- **Verification:** `node --check server/src/runner.js` passed and the full server suite passed 36 tests. Synchronized `server/` to apmain, restarted `palsys.service`, confirmed it active with zero restarts, and verified both local and tailnet `/db/health` responses returned `{"service":"database","status":"alive"}`.
+
+## 2026-11-15 — Run DBSERV API and developer Vite together
+
+- **Files changed:** `server/run`, `server/package.json`, `server/vite.config.js`
+- **Summary:** `server/run` now directly supervises `node src/runner.js` and `npm run dev`; `npm run dev` runs Vite on port 5060 and `dev:api` preserves the API watch command. Vite uses the runner config loader to avoid the read-only systemd `node_modules/.vite-temp` path and allows the APMAIN tailnet hostname.
+- **Verification:** Synchronized `server/` and installed the locked Vite dependency on apmain. `palsys.service` is active with zero restarts; listeners are present on `127.0.0.1:5060` and `127.0.0.1:8432`; the APMAIN UI hostname returns HTTP 200 and the API health endpoint returns alive.
+
+## 2026-11-15 — Run the developer UI as a separate systemd service
+
+- **Files changed:** `server/palsys-web.service`, `server/vite.config.js`
+- **Summary:** Added `palsys-web.service` for the Vite developer interface on port 5060, separate from the API-only `palsys.service`. The web service proxies API requests to APMAIN's 8432 listener through `DEV_API_TARGET`, while local Vite development continues to default to 8100.
+- **Verification:** Installed and enabled the unit on apmain. Both `palsys.service` and `palsys-web.service` are active with zero web-service restarts; port 5060 serves the login page, `/db/health` proxies successfully, and `https://apmain.softshell-grue.ts.net/` returns HTTP 200.
+
+## 2026-11-15 — Deploy developer login and webapp modules
+
+- **Files synchronized:** Current `server/` source, public login UI, developer authentication route, telemetry/user-management modules, Vite configuration, and `palsys-web.service`. Environment files, keys, and dependency trees were excluded.
+- **Summary:** Deployed the server-side `/dev/login` flow and `@pals.me` login allowance, along with the separated API/web runtime changes. Existing apmain environment configuration was preserved.
+- **Verification:** Restarted `palsys.service` and `palsys-web.service`; both are active. API `/db/health`, the Vite UI on port 5060, and the APMAIN tailnet UI endpoint were verified after synchronization.
+## 2026-11-17 — Deploy .NET DBSERV and feature façade
+
+- **Deployment:** Synchronized the current `server/` source and self-contained `linux-x64` .NET publish to `/opt/palsys/server`, excluding remote environment files, keys, dependency trees, and storage.
+- **Runtime:** Replaced the old Node `palsys.service` command with the self-contained ASP.NET Core DBSERV binary on `127.0.0.1:8432`. Installed and enabled the new unit; removed the obsolete `palsys-web.service` deployment. `palsys.service` is active.
+- **Security:** Configured persistent Data Protection keys under the preserved remote storage path and retained the hardened service restrictions. No environment contents or credentials were printed.
+- **Verification:** Remote `/db/health` returned HTTP 200; unauthenticated `/dev/session` returned HTTP 401; unauthenticated `/internal/v1/tutors` returned HTTP 403. No public Vite web unit is active on apmain.
+- **Database blocker:** Applying `schema_v5_identity.sql` was rejected by MariaDB: the configured `dbpals` account lacks `CREATE` permission on `palsysdb.__EFMigrationsHistory`. The v5 and v6 schemas were not applied, so Identity and feature data routes require a DBA grant and a later migration run.

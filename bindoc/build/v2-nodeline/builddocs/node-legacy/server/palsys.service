@@ -1,0 +1,29 @@
+[Unit]
+Description=PALs API Server
+Wants=network-online.target mariadb.service
+After=network-online.target mariadb.service
+
+[Service]
+Type=simple
+User=palsys
+Group=palsys
+WorkingDirectory=/opt/palsys/server
+Environment=NODE_ENV=production
+Environment=BIND_ADDRESS=127.0.0.1
+Environment=PORT=8432
+ExecStart=/opt/palsys/server/run
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

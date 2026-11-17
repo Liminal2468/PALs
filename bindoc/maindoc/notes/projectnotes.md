@@ -1,5 +1,14 @@
 # PALs Research Notes
 
+## 2026 .NET migration status
+
+The active runtime is being migrated from the archived Node/Python line to two
+separate ASP.NET Core .NET 10 applications: MENTOS HOST and DBSERV. The public
+route structures and research scope remain unchanged. The preserved frontend
+currently contains demonstration cards and browser-local state; those values
+must not be treated as real student records. The `mentos/webend` boundary is
+the planned integration point for authenticated, consent-aware API data.
+
 ## Source and status
 
 - Source: [Group2-Hunter_PR1_Chapter1-2_ProposalDefendedRevised.pdf](../../pdf/Group2-Hunter_PR1_Chapter1-2_ProposalDefendedRevised.pdf)

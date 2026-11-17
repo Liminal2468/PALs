@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PALs: STI College Cubao SHS | Homepage</title>
+    
+    <link rel="stylesheet" href="styles/pals.css" />
+</head>
+
+<body>
+    <!--container for theme-->
+    <div class="palRoot" id="palRoot">
+
+    <!--header bar-->
+<header>
+    <div class="sidebar-toggle-container">
+        <button id="sidebarToggle" aria-label="Toggle Navigation">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panels-top-left-icon lucide-panels-top-left"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 21V3"/></svg>
+        </button>
+    </div>
+
+    <a class="brand" href="pals.html" aria-label="PALs homepage">
+        <img src="z/pals.png" height="40px" alt="PALs"/>
+    </a>
+    
+    <button class="user-row header-user" type="button" data-navigate="pages/user.html" aria-label="View and edit profile">
+        <div class="avatar">JM</div>
+        <div class="user-details">
+            <div class="user-name">Developer</div>
+            <div class="user-role">API session</div>
+        </div>
+    </button>
+</header>
+
+<!-- shell containing sidebar and main content-->
+<div class="shell">
+    <!-- sidebar navigation -->
+    <aside class="sidebar">
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">Developer API</div>
+            <div class="nav-item active" data-page="pages/analytics.html">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></svg>
+                <span class="nav-text">Dashboard</span>
+            </div>
+            <div class="nav-item" data-page="pages/settings.html">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+                <span class="nav-text">Database</span>
+            </div>
+            <div class="nav-item" data-page="pages/resources.html">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-library-icon lucide-square-library"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></svg>
+                <span class="nav-text">Resources</span>
+            </div>
+            <div class="nav-item" data-page="pages/system.html">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M18.36 5.64l-2.12 2.12M7.76 16.24l-2.12 2.12"/><circle cx="12" cy="12" r="4"/></svg>
+                <span class="nav-text">System</span>
+            </div>
+        </nav>
+
+        <!-- User profile -->
+        <div class="sidebar-user">
+            <div class="switch">
+                <svg id="themeIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--text-secondary)" stroke-width="1.5">
+                    <defs>
+                        <mask id="moon-cutout">
+                            <rect x="0" y="0" width="16" height="16" fill="white" />
+                            <circle id="mask-circle" cx="16" cy="0" r="4" fill="black" />
+                        </mask>
+                    </defs>
+                    <circle id="theme-circle" cx="8" cy="8" r="5" fill="none" mask="url(#moon-cutout)" />
+                </svg>
+
+                <span class="toggle-label" id="modeLabel">Light</span>
+                <label class="tog" aria-label="Toggle dark mode">
+                    <input type="checkbox" id="darkToggle">
+                    <div class="tog-track"></div>
+                    <div class="tog-thumb"></div>
+                </label>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="var(--text-secondary)" stroke-width="1.5" aria-hidden="true">
+                    <path d="M13 9.5A6 6 0 017 3.5a6.5 6.5 0 100 9 6 6 0 006-3z" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <button class="btn-ghost" id="developerLogout" type="button">Sign out</button>
+        </div>
+    </aside>
+
+
+    <!-- Main content area -->
+    <main>
+        <!-- Content area linked to pages folder -->
+        <div class="content"></div>
+    </main>
+</div>
+<!-- JavaScript for dark mode toggle -->
+<script src="scripts/pals.js" defer></script>
+</body>
+</html>
