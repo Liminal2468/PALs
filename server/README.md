@@ -42,6 +42,13 @@ values are ignored; process environment values take precedence. `DB_PASSWORD`
 is intentionally ignored in YAML and must remain in `.env` or the process
 environment.
 
+To install the systemd service for the directory containing this checkout,
+run `sudo ./install-service.sh` from `server/`. The installer installs the
+service through a stable launcher link that points to this directory. The
+published executable can therefore be located under any checkout path; the
+service does not assume `/opt/palsys`. Persistent Data Protection keys are
+stored in `/var/lib/palsys/dataprotection`.
+
 The developer interface remains under [`public/`](public/). It is static
 content and is served by the ASP.NET Core host; the old Vite and Node runtime
 files have been removed from the active server tree.

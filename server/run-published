@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+server_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+published_binary="$server_root/publish/Palsys.Server"
+
+if [[ ! -x "$published_binary" ]]; then
+    printf 'Missing executable: %s\nRun the dotnet publish command first.\n' "$published_binary" >&2
+    exit 127
+fi
+
+cd -- "$server_root"
+exec "$published_binary" "$@"

@@ -7,21 +7,22 @@ After=network-online.target mariadb.service
 Type=simple
 User=palsys
 Group=palsys
-WorkingDirectory=/opt/palsys/server
+WorkingDirectory=/var/lib/palsys
 Environment=DOTNET_ENVIRONMENT=Production
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=BIND_ADDRESS=127.0.0.1
 Environment=PORT=8432
-Environment=DATA_PROTECTION_KEY_PATH=/opt/palsys/server/storage/dataprotection
-ExecStart=/opt/palsys/server/publish/Palsys.Server
+Environment=DATA_PROTECTION_KEY_PATH=/var/lib/palsys/dataprotection
+Environment=PATH=/usr/local/libexec:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/env palsys-server
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=30s
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectHome=true
+ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=/opt/palsys/server/storage
+ReadWritePaths=/var/lib/palsys
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

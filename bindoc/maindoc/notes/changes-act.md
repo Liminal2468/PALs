@@ -118,3 +118,18 @@
   `/db/health`; the temporary configuration and Data Protection key were
   removed afterward.
 
+## 2026-11-18 — Make published DBSERV location-independent
+
+- **Launcher:** Added `server/run-published`, which resolves its own `server`
+  directory and executes `publish/Palsys.Server` without a hard-coded checkout
+  path.
+- **Service installation:** Added `server/install-service.sh`. It installs a
+  stable `/usr/local/libexec/palsys-server` symlink to the current checkout,
+  so the project may live under `/root` or another location. Persistent Data
+  Protection state is kept in `/var/lib/palsys`.
+- **Service unit:** Removed the `/opt/palsys` executable and storage paths.
+  `ProtectHome=read-only` permits a service binary/configuration located under
+  a home directory while keeping home data non-writable.
+- **Verification:** Shell syntax, systemd unit validation, and documentation
+  whitespace checks passed. No service was installed or restarted.
+

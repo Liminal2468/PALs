@@ -29,14 +29,13 @@ As of this moment some part has yet to be updated, such as [server](server/) as 
 ### Build
 
 
-To build the Linux x64 DBSERV executable locally, run: 
-```bash
-dotnet publish server/Palsys.Server.csproj -c Release -r linux-x64 --self-contained true -o server/publish -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false`
-```
+To build the Linux x64 DBSERV executable locally, run: `dotnet publish server/Palsys.Server.csproj -c Release -r linux-x64 --self-contained true -o server/publish -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false`
 
 Then make it executable with: `chmod 0755 server/publish/Palsys.Server`
 
 To install the service using the current project location, run: `sudo ./server/install-service.sh`
+
+To run the published executable directly from any checkout location, run: `./server/run-published`
 
 ```bash
 git clone "PASTE_THE_REPOSITORY_CLONE_URL"
