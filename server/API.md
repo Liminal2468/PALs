@@ -1,335 +1,266 @@
-# PALs REST API contract (v1 draft)
+# PALs active REST API contract
 
-This document defines the first backend-facing contract based on the PALs
-research proposal. It is a draft: business endpoints currently return HTTP
-`501` until their handlers, authorization rules, and validation are
-implemented. `GET /<prefix>/health` is available on each service.
+> [!NOTE] This document describes the active ASP.NET Core implementation as of 2026-11-18. It replaces the retired Node/JWT/Google-provider draft.
 
-All paths below are relative to the mounted prefix. JSON request/response
-examples omit the common error envelope unless noted:
+The contract is divided into two applications:
 
-```json
-{ "error": { "code": "bad_request", "message": "..." } }
+- `mentos/` is the browser-facing HOST and exposes /api/v1.
+- `server/` is DBSERV and exposes host-only data routes under /internal/v1.
+
+Browsers must call Mentos, not DBSERV. DBSERV also exposes service liveness
+routes such as /db/health, /acc/health, and /connect/health; those health
+routes do not represent implemented feature APIs.
+
+## Request trust and sessions
+
+Mentos authenticates the browser with the HttpOnly pals_host_session cookie.
+The cookie contains an opaque DBSERV session key. DBSERV persists these keys in
+web_sessions; the current implementation is not a HOST-memory session.
+
+Mentos-to-DBSERV requests include:
+
+```text
+X-Pals-Host-Key: <private shared key>
+X-Pals-Session: <opaque session key>   # required for user-scoped operations
 ```
 
-The server applies an in-memory limit of 120 requests per client IP per
-15-minute window to non-`/db` APIs. Under `/db`, the IP limit counts only
-unsuccessful responses (60 per IP per 15 minutes); authenticated requests also
-have a separate 3,000-per-15-minute quota keyed by the verified JWT `kid`.
-Behind a local HTTP reverse proxy, the server trusts `X-Forwarded-For` only
-from loopback peers; the proxy must overwrite or sanitize that header.
-Global errors use `unauthorized` (401), `forbidden` (403), `not_found` (404),
-and `payload_too_large` (413) for those statuses. JSON request bodies are
-limited to 256 KiB.
+The shared key is server-to-server configuration and must never be delivered to
+browser JavaScript. Missing or invalid trust/session values return 401 or 403
+as appropriate. DBSERV failures are returned by Mentos as a sanitized 502.
 
-IDs are opaque database IDs in these draft examples. A production public API
-may use different identifiers. Authenticated endpoints require a validated
-session/token once the login flow is decided. The generic `/db` API is an
-internal service-to-service data-access layer, not a browser-facing API.
-Feature handlers must enforce ownership, role, consent, and resource-level
-authorization; a valid JWT at `/db` is not a substitute for those checks.
+Common error shape:
 
-## Roles
+```json
+{ "error": { "code": "error_code", "message": "Human-readable message." } }
+```
 
-The application has `tutor`, `tutee`, and `admin` roles. These are grants, not
-mutually exclusive account types: a student can have both tutor and tutee
-roles, and can request help in one subject while tutoring another. Admin is a
-separately granted role and must not be self-assignable through profile or
-registration endpoints.
+## Mentos HOST — /api/v1
 
-## Accounts and profiles — `/acc`
+These are the public application routes. Unless noted otherwise, protected
+routes require the Mentos session cookie and a reachable DBSERV database.
 
-| Method | Path | Purpose |
+### Health and authentication
+
+| Method | Path | Status and behavior |
 |---|---|---|
-| `GET` | `/me` | Get the authenticated user's profile and roles |
-| `PATCH` | `/me` | Update allowed profile fields such as grade, strand, timezone, and learning preferences |
-| `POST` | `/me/roles` | Opt into the `tutor` or `tutee` role |
-| `GET` | `/subjects` | List active subjects and topics |
-| `PUT` | `/me/tutor-subjects` | Replace the authenticated tutor's subject/proficiency declarations |
-| `GET` | `/me/tutor-subjects` | List the authenticated tutor's subject declarations |
-| `PUT` | `/admin/users/:userId/roles/:roleKey` | Grant a role as an authorized admin |
-| `DELETE` | `/admin/users/:userId/roles/:roleKey` | Revoke a role as an authorized admin |
+| GET | `/api/v1/health` | Implemented liveness response; no database query |
+| GET | `/api/v1/frontend/status` | Implemented HOST status response |
+| GET | `/api/v1/auth/options` | Returns local-school-account; terms are required |
+| POST | `/api/v1/auth/login` | Validates LASTNAME.STUID@cubao.sti.edu.ph, requires accepted terms, provisions/finds the PALs account, and creates a DBSERV session |
+| POST | /api/v1/auth/admin/login | Verifies an Identity-backed admin/developer password, then verifies `mfaCode` when TOTP is enabled, and creates a DBSERV session |
+| GET | /api/v1/session | Returns the current persisted DBSERV session account |
+| POST | /api/v1/auth/logout | Revokes the current DBSERV session and clears the cookie |
+| DELETE | /api/v1/session | Logout alias; revokes the current DBSERV session |
 
-`PATCH /me` must not accept role grants, account status, external identity,
-consent, or admin fields. Tutor subject declarations do not imply verified
-proficiency; verification is an administrative workflow to be defined.
-Self-service role opt-in is limited to tutor/tutee; only an authorized admin
-may grant or revoke roles through the admin routes. Admin actions must be
-audited and cannot remove the last active admin without a deliberate recovery
-procedure.
+The current student login is an email-and-terms provisioning facade. It is not
+yet a password login, OAuth authorization server, or provider callback flow.
+The local student identifier must contain at least six digits, enforced by the
+HOST and DBSERV policy.
 
-## Matching and study requests — `/connect`
+The admin/developer compatibility login uses PALs-owned ASP.NET Identity
+credentials. If TOTP is enabled for the account, the same request must include
+`mfaCode`; the response is `401 mfa_required` when the second factor is
+missing. Google Authenticator is supported as a TOTP client, but Google Sign-In
+is not used as an external identity provider.
 
-The proposal requires matching by subject/need, tutor proficiency, schedule,
-and learner characteristics, while favoring a useful skill difference. The
-final algorithm and weights remain to be researched; the current score formula
-is a provisional prototype, not a stable public contract.
-
-The current matching implementation is a **stateless, provisional baseline**.
-It ranks only the candidates supplied in the request body; it does not fetch
-student records, write recommendations, authenticate the student identities,
-reserve tutor capacity, or perform group optimization. A trusted backend caller
-must load authorized profiles and enforce the student's identity before using
-these routes. Do not expose them directly to browsers until authentication,
-ownership checks, and server-side candidate loading are integrated.
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/match` | Rank tutor candidates for a tutee learning request |
-| `POST` | `/recommendations` | Rank tutor candidates for a tutee learning request |
-| `POST` | `/tutorreco` | Rank open tutee requests for a tutor |
-| `POST` | `/requests` | Create a tutee learning request |
-| `GET` | `/requests` | List the authenticated user's requests |
-| `GET` | `/requests/:requestId` | Read an owned request |
-| `PATCH` | `/requests/:requestId` | Update or close an owned open request |
-| `POST` | `/requests/:requestId/matches` | Generate recommendations for an eligible request |
-| `GET` | `/requests/:requestId/matches` | List recommendations for an owned request |
-| `POST` | `/matches/:matchId/accept` | Accept a recommendation, subject to availability |
-| `POST` | `/matches/:matchId/decline` | Decline a recommendation |
-
-Create-request body:
+Example privileged login body after TOTP enrollment:
 
 ```json
 {
-  "subject_id": 12,
-  "topic_id": 4,
-  "current_proficiency": 2,
-  "requested_help": "Review the topic and practice examples",
-  "preferred_format": "one_to_one"
+  "email": "reime@pals.me",
+  "password": "entered interactively",
+  "mfaCode": "123456"
 }
 ```
 
-### Provisional recommendation input
-
-`POST /connect/match` (also available as `/connect/recommendations`) accepts
-`{ "request": ..., "tutors": [...],
-"limit": 10 }`. The tutor-facing reverse route accepts
-`{ "tutor": ..., "requests": [...], "limit": 10 }`. Both use the same
-pair-scoring function. Each request includes its status, tutee role, subject,
-current proficiency (prototype scale 1–5), preferred format, UTC availability
-intervals, and optional preference tags. Each tutor includes active status,
-tutor role, subject/topic, proficiency on the same prototype scale, supported
-formats, UTC availability intervals, and optional preference tags. A tutor
-may include `topic_ids` to declare supported topics under a subject.
-
-The current `weighted-baseline-v1-draft` requires an active tutor, matching
-subject/topic, tutor proficiency above the tutee level, a compatible format,
-and at least one overlapping availability interval. Its provisional weights
-are 0.35 proficiency gap, 0.35 availability, 0.20 explicit preference
-similarity, and 0.10 format fit; availability reaches its maximum score at 30
-overlapping minutes. Scores are rankings, not probabilities or validated
-measures of learning effectiveness. These weights, the 30-minute cap, and the
-1–5 scale are engineering defaults for the prototype, not values specified by
-the proposal; validate or replace them with the research team.
-
-Example request (interval timestamps must include an explicit timezone):
+Example student login:
 
 ```json
 {
-  "request": {
-    "learning_request_id": 23,
-    "tutee_user_id": 100,
-    "roles": ["tutee"],
-    "subject_id": 5,
-    "topic_id": 2,
-    "current_proficiency": 2,
-    "preferred_format": "one_to_one",
-    "status": "open",
-    "availability": [
-      { "start": "2026-11-02T09:00:00Z", "end": "2026-11-02T11:00:00Z" }
-    ],
-    "preferences": ["worked_examples", "visual"]
-  },
-  "tutors": [
-    {
-      "tutor_user_id": 201,
-      "roles": ["tutor"],
-      "subject_id": 5,
-      "topic_id": 2,
-      "proficiency_level": 4,
-      "status": "active",
-      "formats": ["one_to_one", "group"],
-      "availability": [
-        { "start": "2026-11-02T09:30:00Z", "end": "2026-11-02T10:00:00Z" }
-      ],
-      "preferences": ["worked_examples"]
-    }
-  ],
-  "limit": 10
+  "email": "SANTOS.123456@cubao.sti.edu.ph",
+  "termsAccepted": true
 }
 ```
 
-Successful responses return ranked IDs, score components, and non-sensitive
-reason codes. `limit` is optional and defaults to 10 (maximum 50). Malformed
-input returns `400`. Requests with no eligible candidate return an empty
-`data` array.
+### Accounts, pages, and learning data
 
-Recommendation results should expose an understandable, non-sensitive
-explanation (for example subject fit and schedule overlap), not private profile
-data or unsupported claims of fairness. The initial schema stores
-`algorithm_version`, optional score components, and explanation so the method
-can be audited and revised.
-
-## Scheduling — `/sched`
-
-| Method | Path | Purpose |
+| Method | Path | Status and behavior |
 |---|---|---|
-| `GET` | `/availability` | List the authenticated user's weekly availability |
-| `PUT` | `/availability` | Replace the authenticated user's availability slots |
-| `GET` | `/sessions` | List sessions visible to the authenticated user |
-| `POST` | `/sessions` | Request a session from an accepted match |
-| `GET` | `/sessions/:sessionId` | Read a session if the user participates or is authorized staff |
-| `PATCH` | `/sessions/:sessionId` | Confirm, reschedule, or cancel according to transition rules |
+| GET | /api/v1/me | Returns the authenticated account/profile |
+| PATCH | /api/v1/me | Updates display name, grade, and section; bio, role selections, and subject selections are not yet persisted by the active frontend |
+| GET | /api/v1/users | Implemented; restricted to admin and developer roles |
+| GET | /api/v1/pages | Implemented authenticated static page catalog; not a full CMS/page-management system |
+| GET | /api/v1/tutors | Returns active tutors and subject summaries |
+| GET | /api/v1/tutees | Returns open learning requests/tutee entries |
+| GET | /api/v1/learning-requests | Lists the current user's learning requests |
+| POST | /api/v1/learning-requests | Creates a learning request |
+| GET | /api/v1/sessions | Lists sessions visible to the current user |
+| POST | /api/v1/sessions | Creates a one-to-one session record |
+| PATCH | /api/v1/sessions/{id} | Updates an owned session status |
+| GET | /api/v1/dashboard | Returns live account dashboard aggregates |
 
-Session times are UTC instants in the API and database; availability includes
-an IANA timezone and local recurring weekday/time. The service must reject
-invalid transitions and overlapping bookings. Exact cancellation and
-rescheduling policies remain to be set. A session has a participant list with
-each participant assigned a tutor or tutee role, so group sessions can contain
-multiple tutees (and, if policy permits, multiple tutors). The service must
-validate role grants and participant limits; these constraints cannot be
-expressed by the initial relational schema alone.
+### Calendar schedule
 
-## Session feedback — `/fb`
-
-| Method | Path | Purpose |
+| Method | Path | Status and behavior |
 |---|---|---|
-| `POST` | `/sessions/:sessionId` | Submit one feedback response for a completed session |
-| `GET` | `/sessions/:sessionId` | Read feedback visible to a participant or authorized staff |
+| GET | /api/v1/schedule | Lists active events; optional from and to query values |
+| POST | /api/v1/schedule | Creates an event with onDate, afterDate, eventName, description, and isActive |
+| PATCH | /api/v1/schedule/{id} | Modifies an event; restricted to admin and developer |
+| DELETE | /api/v1/schedule/{id} | Soft-deactivates an event; restricted to admin and developer |
 
-Example request:
+Accepted date forms include MM-DD-YY:HH-mm, MM-DD-YY:HH-mm-, and ISO-like
+UTC date-time forms. The database stores on_date and after_date as UTC
+DATETIME(3) values and requires the end not to precede the start.
 
-```json
-{
-  "rating": 5,
-  "learning_helpfulness": 4,
-  "comment": "The worked examples helped me understand the topic."
-}
+### Resources, feedback, support, and analytics
+
+| Method | Path | Status and behavior |
+|---|---|---|
+| GET | /api/v1/resources | Lists visible resources and the current user's own resources |
+| POST | /api/v1/resources | Creates a resource in pending moderation state |
+| PATCH | /api/v1/resources/{id} | Updates an owned resource |
+| DELETE | /api/v1/resources/{id} | Deletes an owned resource |
+| GET | /api/v1/feedback | Lists visible feedback posts and vote counts |
+| POST | /api/v1/feedback | Creates a feedback post |
+| POST | /api/v1/feedback/{id}/votes | Records an idempotent vote |
+| POST | /api/v1/support | Creates a support ticket for the current account |
+| POST | /api/v1/analytics/events | Records an event only when active research consent exists |
+| POST | /api/v1/analytics/consent | Records or restores analytics consent |
+| GET | /api/v1/analytics/summary | Returns the current user's consent-scoped aggregate summary |
+
+The active frontend connects listing, creation, feedback voting, support, and
+analytics consent. Resource update/delete controls, session status controls,
+and analytics event emission are not fully wired into the current UI.
+
+### Deferred authentication and matching routes
+
+| Route | Status |
+|---|---|
+| Provider start/callback | Not implemented; no Google, Entra, or PALs OAuth callback route is active |
+| Signup route | Not implemented; account provisioning currently occurs through the local school-email login façade |
+| GET /api/v1/rec-peer-tutor | HTTP 501 connect_not_implemented |
+| GET /api/v1/recommended-peer-tutors | HTTP 501 connect_not_implemented compatibility alias |
+| GET /api/v1/tutors/recommended | HTTP 501 connect_not_implemented compatibility alias |
+
+The /connect matching algorithm and recommendation persistence remain
+deliberately deferred pending the approved matching design.
+
+## DBSERV internal API — /internal/v1
+
+These routes are not browser-facing. Every request requires a valid
+X-Pals-Host-Key; user-scoped routes also require X-Pals-Session.
+
+| Method | Path | Status and behavior |
+|---|---|---|
+| POST | /internal/v1/accounts/provision | Provisions a recognized school account |
+| POST | /internal/v1/auth/login | Validates school-account format, provisions/finds the account, and creates a session |
+| POST | /internal/v1/auth/admin/login | Verifies the Identity password and privileged role, verifies `mfaCode` when enabled, then creates a session |
+| GET | /internal/v1/auth/session | Resolves the X-Pals-Session account |
+| DELETE | /internal/v1/auth/session | Revokes the supplied session |
+| GET/PATCH | /internal/v1/me | Reads or updates the current account/profile |
+| GET | /internal/v1/dashboard | Returns account dashboard aggregates |
+| GET | /internal/v1/users | Lists accounts for admin/developer users |
+| GET | /internal/v1/tutors | Lists active tutors |
+| GET | /internal/v1/tutees | Lists open tutee requests |
+| GET/POST | /internal/v1/learning-requests | Reads or creates learning requests |
+| GET/POST/PATCH | /internal/v1/sessions | Reads, creates, or updates sessions |
+| GET/POST/PATCH/DELETE | /internal/v1/schedule | Reads, creates, updates, or deactivates calendar events |
+| GET/POST/PATCH/DELETE | /internal/v1/resources | Resource listing and ownership-checked mutations |
+| GET/POST | /internal/v1/feedback | Feedback listing and creation |
+| POST | /internal/v1/feedback/{id}/votes | Records a feedback vote |
+| POST | /internal/v1/support | Creates a support ticket |
+| POST | /internal/v1/analytics/events | Consent-gated event recording |
+| POST | /internal/v1/analytics/consent | Records analytics consent |
+| GET | /internal/v1/analytics/summary | Returns a consent-scoped summary |
+
+## DBSERV service health routes
+
+The active service controller provides unauthenticated liveness responses for
+the known service names:
+
+```text
+GET /db/health
+GET /acc/health
+GET /sched/health
+GET /fb/health
+GET /adata/health
+GET /connect/health
+GET /chat/health
 ```
 
-Ratings use 1–5 in the schema. Feedback must be limited to session participants;
-moderation and visibility rules are not yet implemented.
+/connect/health means only that the service host is reachable. It does not
+mean tutor matching or recommendations are implemented.
 
-## Research analytics — `/adata`
+## Developer interface routes
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/consent` | Read the authenticated user's research-monitoring consent state |
-| `POST` | `/consent` | Record explicit consent for the one-month Phase 2 usage study |
-| `DELETE` | `/consent` | Withdraw Phase 2 analytics consent |
-| `GET` | `/admin/summary` | Return approved, aggregate research measures to authorized researchers/admins |
-
-Analytics must be disabled unless consent is active. The server should create
-events from validated application actions rather than trusting arbitrary
-client-supplied event records. Do not put names, emails, message content,
-free-form profile text, or other direct identifiers in analytics events.
-Withdrawal, retention, deletion, participant linkage, and approved aggregate
-reporting need to follow the research consent and school requirements.
-
-## Authentication — `/auth/v1`
-
-The authentication service is reachable at
-`https://palsys.softshell-grue.ts.net/auth/v1` through the DBSERV public Funnel
-hostname, but `/auth/v1` is HOST-only at the application layer. Every request
-under this prefix—including `/health` and unknown paths—must include a valid
-RS256 HOST JWT. Requests without a valid bearer token receive `403 forbidden`;
-a valid token without the required route capability also receives
-`403 forbidden`. CLIENTs must never call these routes directly.
-
-The authentication service exposes these routes:
+The DBSERV developer interface has a separate Identity-cookie flow:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/providers/google/config` | Return public Google authorization settings to a scoped HOST |
-| `POST` | `/providers/google/exchange` | Exchange a HOST-supplied authorization code with Google and verify its OIDC ID token |
-| `POST` | `/admins/login` | Verify a local admin username/password and return an active admin account identity |
+| POST | /dev/login | Identity-backed developer login |
+| POST | /dev/mfa/verify | Completes a developer login when ASP.NET Identity requires TOTP |
+| GET | /dev/session | Reads the developer Identity session |
+| POST | /dev/logout | Signs out the developer Identity cookie |
+| GET | /dev/profile | Reads the authenticated developer profile |
+| GET | /dev/mfa | Reads the current account's TOTP status |
+| POST | /dev/mfa/setup | Creates an `otpauth://` setup URI and manual key for the authenticated account |
+| POST | /dev/mfa/confirm | Verifies the setup code, enables TOTP, and returns one-time recovery codes |
+| POST | /dev/mfa/disable | Re-authenticates with TOTP and disables the authenticator |
+| GET | /dev/system/matching-algorithms | Returns the currently empty algorithm-control list |
 
-All routes require an RS256 HOST JWT. Provider config requires scope
-`auth:provider`, resource `authentication`, and action `provider_config`;
-provider exchange uses action `provider_exchange`; admin login requires scope
-`auth:admin`, resource `authentication`, and action `admin_login`. These
-capabilities are separate from generic database CRUD scopes. The browser must
-never call DBSERV or receive the provider client secret.
+## Database schemas and prerequisites
 
-The provider config response contains only `provider`, `enabled`, public
-`client_id`, the fixed Google authorization endpoint, exact allowed
-`redirect_uris`, and scopes. With missing credentials or redirect URIs it
-returns `{ "data": { "provider": "google", "enabled": false } }`. The HOST
-compares its derived callback URL byte-for-byte against the allowlist before
-redirecting the browser.
+Active schema files are under database/schema/:
 
-The provider exchange accepts only `code`, `code_verifier`, `nonce`, and
-`redirect_uri`. The exact redirect URI must appear in `GOOGLE_REDIRECT_URIS` as a
-comma-separated allowlist entry. The service submits the client secret only to
-Google's token endpoint, then verifies signature, issuer, audience, expiry,
-nonce, subject, and verified email using Google's JWKS. Responses contain only
-provider, subject, verified email, and display name. Missing credentials or
-redirect configuration disable the provider; invalid config returns a generic
-unavailable response. OAuth tokens and secrets are never returned or logged.
+| Schema | Purpose |
+|---|---|
+| schema_v1.sql through schema_v4_developer_credentials.sql | Base PALs accounts, sessions, auth, and developer structures |
+| schema_v5_identity.sql | ASP.NET Identity roles/users and migration history |
+| schema_v6_frontend_features.sql | Resources, audits, feedback, votes, and support tickets |
+| schema_v7_sessions_schedule.sql | Persistent HOST sessions and calendar events |
+| schema_v8_mfa.sql | Short-lived hashed TOTP replay protection |
 
-Store `TMP_GCLOUD_CLIENTID` and `TMP_GCLOUD_CLIENTKEY` in the ignored
-`authentication/.provider.env` file. Configure `GOOGLE_REDIRECT_URIS` in the
-authentication service environment or the same private provider config.
-Set its permissions with `chmod 600 authentication/.provider.env`; it must be
-a regular, non-symlink file and the authentication service rejects broader
-permissions. `.provider.env.example` has empty values only. Keep the real file
-outside source control and outside any static web root. HOST now issues only the
-specific provider config/exchange capabilities for these internal calls; its
-public API handles browser redirects and sessions.
+These scripts are not applied automatically. The runtime dbpals account should
+retain application CRUD privileges; use a separate migration administrator to
+apply schema changes. Identity login requires v5 and a seeded Identity account;
+the persisted HOST session and schedule routes require v7.
 
-Admin login accepts only an ASCII username (3–64 characters) and a printable
-ASCII password (12–128 characters). It reads `admin_credentials` separately
-from `users`, compares the scrypt hash, and requires `account_status=active`
-plus the `admin` role before success. Unknown username, wrong password,
-inactive account, and a missing admin role share the same generic 401. Attempts
-are rate-limited by IP and by normalized username, and audit records store only
-an IPv4 `/24` or IPv6 `/64` prefix. Existing `users` still has no password
-column.
+Developer/admin accounts are seeded interactively from server/:
 
-Apply [`database/schemas/schema_v3_auth.sql`](database/schemas/schema_v3_auth.sql)
-before enabling the endpoints. This migration has not been run by these
-changes.
-
-## Messaging — `/chat/v1`
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/conversations` | Create a one-to-one or study-group conversation with eligible members |
-| `GET` | `/conversations` | List conversations for the authenticated user |
-| `GET` | `/conversations/:conversationId/messages` | Read paginated message history for a member |
-| `POST` | `/conversations/:conversationId/messages` | Send a message as the authenticated member |
-| `POST` | `/conversations/:conversationId/members` | Add an eligible member where policy permits |
-| `DELETE` | `/conversations/:conversationId/members/me` | Leave a conversation where policy permits |
-
-REST is for conversation management and history; the realtime transport,
-pagination shape, moderation workflow, retention, and reporting controls need
-separate decisions. A moderation status in the schema does not mean AI
-moderation is implemented or guarantees that harmful content is prevented.
-
-## Database service — `/db`
-
-The internal database API retains its existing generic CRUD contract and is
-restricted to explicitly allowlisted resources. After applying
-[`database/schemas/schema_v1.sql`](database/schemas/schema_v1.sql), configure
-`DB_ALLOWED_TABLES` deliberately. Candidate v1 resource names are:
-
-`GET /health` is an unauthenticated liveness check and does not query MariaDB.
-`GET /health/database` requires a valid host JWT and checks MariaDB with
-`SELECT 1`. The runner performs its own database check through its local
-connection pool. List requests accept optional `limit` and `offset` query
-parameters: the default page is 100 rows, the maximum `limit` is 500, and
-`offset` defaults to 0.
-
-```dotenv
-DB_ALLOWED_TABLES=roles,users,user_roles,student_profiles,subjects,topics,tutor_subjects,learning_requests,availability_slots,match_recommendations,study_sessions,session_participants,session_match_recommendations,session_feedback,research_consents,research_participants,analytics_events,conversations,conversation_members,messages,web_sessions
+```bash
+dotnet run --project Palsys.Server.csproj -- --seed-developer reime@pals.me developer
+dotnet run --project Palsys.Server.csproj -- --seed-developer admin@pals.me admin
 ```
 
-Only expose tables the backend actually needs. In particular, keep the
-`research_participants` identity mapping restricted to trusted backend code.
-The database API is not a substitute for feature-level ownership checks, and
-the public frontend must not receive database-service signing credentials.
+Passwords are entered interactively and stored as Identity hashes. They must
+not be placed in SQL, YAML, .env, source code, or an archive.
 
-The Mentos host API additionally requires the `web_sessions` resource for its
-opaque MariaDB-backed browser sessions. Apply
-[`database/schemas/schema_v2_sessions.sql`](database/schemas/schema_v2_sessions.sql)
-before adding it to the database service allowlist.
+## ISO/IEC 25010:2023 quality review — Mentos
+
+This is an internal engineering assessment of the current Mentos HOST and
+frontend. It is not an ISO certification or an independent conformance audit.
+ISO/IEC 25010:2023 defines a product-quality model with nine characteristics
+and related subcharacteristics for specifying and evaluating software quality.
+Reference: https://www.iso.org/standard/78176.html
+
+Scores are accomplishment ratings from 0.0 to 10.0, based on the current
+source, build checks, route review, and documented local smoke tests. They do
+not represent production measurements where no benchmark or end-to-end test
+exists.
+
+| Characteristic | Score | Evidence and remaining gap |
+|---|---:|---|
+| Functional suitability | 5.0 | Core account, learning, resource, feedback, analytics, and schedule flows exist; OAuth/signup, matching, and several UI actions remain incomplete |
+| Performance efficiency | 4.5 | Async HTTP/database code and client timeout exist; no load, latency, capacity, or query-performance results are recorded |
+| Compatibility | 6.0 | HOST/DBSERV separation, HTTP/JSON routes, YAML configuration, and Linux publishing are established; cross-platform and proxy matrices are incomplete |
+| Interaction capability | 5.0 | Existing responsive interface, forms, status feedback, and some ARIA support exist; demo markup, legacy localStorage behavior, and accessibility testing remain |
+| Reliability | 4.5 | Health routes, service supervision, persistent sessions, and sanitized DBSERV failures exist; schema deployment, recovery, failover, and soak testing remain |
+| Security | 5.0 | HttpOnly sessions, shared-key trust, Identity hashing, role checks, ownership checks, and secret exclusions exist; student login is not yet password/OAuth-based and no formal security audit is complete |
+| Maintainability | 6.5 | Separated HOST/DBSERV projects, schema versions, documentation, YAML configuration, and buildable .NET projects exist; legacy frontend fallback code and limited active-project automated tests remain |
+| Flexibility | 6.0 | Relocatable publishing, environment/YAML configuration, and a façade allow changes; provider integration, matching, and some account/profile capabilities are not yet extensible implementations |
+| Safety | 3.5 | Consent gating, ownership checks, support tickets, and moderation fields exist; education privacy review, content-safety workflow, incident response, and policy validation are incomplete |
+| Overall average | 5.1 | Prototype/integration stage; not ready to claim production education-platform quality |
+
+The largest quality risks are the incomplete authentication model, unfinished
+matching flow, legacy placeholder/localStorage paths in the frontend, missing
+performance/security evidence, and unapplied production database migrations.

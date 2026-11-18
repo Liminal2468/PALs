@@ -1,7 +1,7 @@
 -- Frontend feature persistence for resources, feedback, and support.
 -- Apply after schema_v1.sql through schema_v5_identity.sql.
 
-USE palsysdb;
+USE devpals;
 
 CREATE TABLE IF NOT EXISTS resources (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

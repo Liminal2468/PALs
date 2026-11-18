@@ -10,7 +10,11 @@ const userLoginSubmit = userLoginForm.querySelector(".login-submit");
 const termsDialog = document.getElementById("termsDialog");
 const adminEmail = document.getElementById("adminEmail");
 const adminPassword = document.getElementById("adminPassword");
+const adminMfaLabel = document.getElementById("adminMfaLabel");
+const adminMfaCode = document.getElementById("adminMfaCode");
+const adminMfaHint = document.getElementById("adminMfaHint");
 const schoolEmailDomain = "@cubao.sti.edu.ph";
+let adminMfaRequired = false;
 
 function validateSchoolEmail(input, errorElement) {
     const email = input.value.trim();
@@ -46,6 +50,15 @@ function setLoginView(view) {
     if (view === "admin") adminEmail.focus();
 }
 
+function setAdminMfaRequired(required) {
+    adminMfaRequired = required;
+    adminMfaLabel.hidden = !required;
+    adminMfaCode.hidden = !required;
+    adminMfaHint.hidden = !required;
+    adminMfaCode.required = required;
+    if (required) adminMfaCode.focus();
+}
+
 loginTrigger.addEventListener("click", () => {
     setLoginView("choices");
     loginDialog.showModal();
@@ -65,7 +78,11 @@ termsDialog.addEventListener("cancel", (event) => {
 document.getElementById("userLoginChoice").addEventListener("click", () => setLoginView("user"));
 document.getElementById("adminLoginChoice").addEventListener("click", () => setLoginView("admin"));
 document.querySelectorAll(".login-back").forEach((button) => {
-    button.addEventListener("click", () => setLoginView("choices"));
+    button.addEventListener("click", () => {
+        setAdminMfaRequired(false);
+        adminMfaCode.value = "";
+        setLoginView("choices");
+    });
 });
 
 userEmail.addEventListener("input", () => {
@@ -88,7 +105,15 @@ adminEmail.addEventListener("input", () => {
 
 adminPassword.addEventListener("input", () => {
     const emailValid = validateAdminEmail(adminEmail, document.getElementById("adminEmailError"));
-    adminLoginForm.querySelector(".login-submit").disabled = !adminEmail.value.trim() || !emailValid || !adminPassword.value;
+    const mfaReady = !adminMfaRequired || adminMfaCode.value.replaceAll(" ", "").length >= 6;
+    adminLoginForm.querySelector(".login-submit").disabled = !adminEmail.value.trim() || !emailValid || (!adminMfaRequired && !adminPassword.value) || !mfaReady;
+    document.getElementById("adminLoginStatus").textContent = "";
+});
+
+adminMfaCode.addEventListener("input", () => {
+    const emailValid = validateAdminEmail(adminEmail, document.getElementById("adminEmailError"));
+    const mfaReady = adminMfaCode.value.replaceAll(" ", "").length >= 6;
+    adminLoginForm.querySelector(".login-submit").disabled = !adminEmail.value.trim() || !emailValid || !mfaReady;
     document.getElementById("adminLoginStatus").textContent = "";
 });
 
@@ -117,7 +142,7 @@ userLoginForm.addEventListener("submit", (event) => {
     });
 });
 
-adminLoginForm.addEventListener("submit", (event) => {
+adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const adminLoginStatus = document.getElementById("adminLoginStatus");
     const adminAddress = adminEmail.value.trim().toLowerCase();
@@ -136,20 +161,34 @@ adminLoginForm.addEventListener("submit", (event) => {
 
     const submitButton = adminLoginForm.querySelector(".login-submit");
     submitButton.disabled = true;
-    fetch("/api/v1/auth/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ email: adminAddress, password: adminPassword.value })
-    }).then(async response => {
+    try {
+        const response = await fetch("/api/v1/auth/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                email: adminAddress,
+                password: adminPassword.value,
+                mfaCode: adminMfaRequired ? adminMfaCode.value : undefined,
+            })
+        });
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body?.error?.message || "Administrator sign-in failed.");
+        if (!response.ok) {
+            if (body?.error?.code === "mfa_required") {
+                setAdminMfaRequired(true);
+                adminLoginStatus.textContent = "Enter the current code from your authenticator app.";
+                submitButton.disabled = true;
+                return;
+            }
+            throw new Error(body?.error?.message || "Administrator sign-in failed.");
+        }
         window.location.assign("pals.html");
-    }).catch(error => {
+    } catch (error) {
         adminLoginStatus.textContent = error.message;
         submitButton.disabled = false;
-    });
-    adminPassword.value = "";
+    } finally {
+        if (!adminMfaRequired) adminPassword.value = "";
+    }
 });
 
 loginDialog.addEventListener("cancel", (event) => {

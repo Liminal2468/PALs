@@ -1,7 +1,7 @@
 -- Persistent HOST sessions and calendar schedule events.
 -- Apply after schema_v1.sql through schema_v6_frontend_features.sql.
 
-USE palsysdb;
+USE devpals;
 
 CREATE TABLE IF NOT EXISTS web_sessions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

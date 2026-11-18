@@ -133,3 +133,95 @@
 - **Verification:** Shell syntax, systemd unit validation, and documentation
   whitespace checks passed. No service was installed or restarted.
 
+## 2026-11-18 — Update active API contract and quality review
+
+- API documentation: Replaced the retired Node/JWT/Google draft in
+  server/API.md with the current Mentos /api/v1, DBSERV /internal/v1,
+  service-health, developer-interface, schema, and deferred-route contract.
+- Quality review: Added a non-certification ISO/IEC 25010:2023 evidence review
+  for the current Mentos HOST/frontend. The current overall engineering
+  accomplishment score is 5.1/10; the largest gaps are authentication,
+  matching, frontend placeholders, production database migration, and missing
+  performance/security evidence.
+
+## 2026-11-18 — Create PALs OAuth/OIDC implementation plan
+
+- Added bindoc/maindoc/notes/oauth-implementation-plan.md.
+- The plan covers the database and signing-key prerequisites, PALs-owned
+  Authorization Code + PKCE/OIDC flow, HOST integration, account/role policy,
+  frontend transition, security testing, and local-only acceptance gates.
+- Phase 6 explicitly requires updating server/API.md and server/README.md
+  after the routes and persistence behavior are implemented.
+
+## 2026-11-18 — Create v3 checkpoint and add first-party TOTP foundation
+
+- **Checkpoint:** Created `bindoc/build/v3/server.tar.gz` and
+  `bindoc/build/v3/mentos.tar.gz` from the current source tree. The archives
+  exclude real environment files, private key directories, dependency trees,
+  generated .NET build output, and `server/publish`; no password or signing key
+  was archived.
+- **Authentication decision:** PALs will use its own ASP.NET Identity
+  credentials and TOTP MFA. Google Authenticator is supported as a compatible
+  TOTP client; Google Sign-In/OAuth and Microsoft Entra are not introduced.
+- **DBSERV implementation:** Added Identity-backed TOTP setup/status,
+  confirmation, disablement, developer-login challenge, replay protection, and
+  the `schema_v8_mfa.sql` migration. Successful TOTP code digests are retained
+  only briefly in `identity_mfa_replays`; raw codes are not stored.
+- **HOST implementation:** The Mentos admin/developer login forwards
+  `mfaCode` and presents an existing-form second-factor field when DBSERV
+  returns `mfa_required`. The server developer interface has the equivalent
+  challenge flow. No Mentos styles were changed.
+- **Configuration/docs:** Added `MFA_REQUIRE_PRIVILEGED` to the server example
+  YAML, added the MFA table to the example allowlist, and updated
+  `server/API.md`, `server/README.md`, and the revised OAuth plan.
+- **Verification:** Both .NET projects build with zero warnings/errors; both
+  changed login scripts pass `node --check`; a local DBSERV smoke run returned
+  200 for `/db/health`, 401 for unauthenticated `/dev/session` and `/dev/mfa`,
+  and 200 for the static developer login page. End-to-end MFA still requires
+  the local MariaDB schemas v5, v7, and v8 plus a seeded Identity account.
+- **Phase status:** OAuth/OIDC authorization-code, PKCE, OIDC token issuance,
+  and the Mentos callback remain unimplemented. The project can proceed from
+  the TOTP portion of Phase 0 once the disposable database and account-
+  verification policy are available.
+
+## 2026-11-18 — Centralize DBSERV configuration
+
+- **Configuration source:** DBSERV now uses `server/config.yaml` as its sole
+  non-secret configuration file. `server/.env` is reserved for `DB_PASSWORD`
+  only; environment variables supplied by the process remain authoritative.
+- **Cleanup:** Stopped loading `server/database/.env`, moved the existing
+  ignored secret file to `server/.env` without displaying its contents, and
+  removed the redundant database environment example.
+- **Code guard:** The dotenv loader now ignores every key except
+  `DB_PASSWORD`, preventing non-secret values from competing with YAML.
+- **Documentation:** Updated the database instructions, legacy Node-line
+  notice, and file map to show the single active configuration location.
+- **Verification:** The moved secret file remains owner-only and was not
+  printed. No database password or other secret was added to source control.
+
+## 2026-11-18 — Add active service flowcharts
+
+- **Files added:** `bindoc/maindoc/flows/server-mentos.md`,
+  `server-restapi.md`, `server-database.md`, `mentos-server.md`,
+  `mentos-server-database.md`, and `authentication-flow-pre-established.md`.
+- **Coverage:** Documented the active browser → Mentos → private DBSERV →
+  MariaDB path, public `/api/v1` to private `/internal/v1` mappings,
+  `X-Pals-Host-Key` and `X-Pals-Session` boundaries, Identity/session/MFA
+  persistence, and the current versus planned authentication flows.
+- **Accuracy note:** The OAuth/OIDC diagram is explicitly marked as planned;
+  the student email-and-terms path is marked as a compatibility facade and not
+  proof of mailbox ownership. `/connect` recommendations remain deferred.
+- **Format:** All diagrams use Mermaid flowchart or sequence-diagram blocks
+  following the official Mermaid flowchart syntax.
+
+## 2026-11-18 — Add consolidated architecture flow
+
+- **File updated:** `bindoc/maindoc/flows/thebigone.md`.
+- **Scope:** Added one expanded Mermaid flowchart combining the browser,
+  Mentos, DBSERV, REST trust/session headers, Identity, TOTP/MFA replay,
+  MariaDB, session creation, current student compatibility login, direct
+  developer login, and planned OAuth/OIDC.
+- **Boundary:** The existing title and introduction before the Mermaid block
+  were preserved. The explanation after the block distinguishes solid active
+  behavior from dashed planned OAuth/OIDC behavior.
+

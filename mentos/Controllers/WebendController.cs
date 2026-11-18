@@ -173,5 +173,5 @@ public sealed class WebendController : ControllerBase
     private static bool IsSchoolEmail(string? email) => email is not null && email.EndsWith(SchoolDomain, StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(email[..^SchoolDomain.Length], @"^[a-z]+\.[0-9]{6,}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static object Error(string code, string message) => new { error = new { code, message } };
     public sealed record LoginRequest(string? Email, bool TermsAccepted);
-    public sealed record AdminLoginRequest(string? Email, string? Password);
+    public sealed record AdminLoginRequest(string? Email, string? Password, string? MfaCode);
 }

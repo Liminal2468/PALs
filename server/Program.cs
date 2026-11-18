@@ -14,7 +14,6 @@ var processEnvironmentKeys = Environment.GetEnvironmentVariables()
     .Cast<string>()
     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 LoadDotEnv(YamlEnvironment.ResolvePath(".env"), processEnvironmentKeys);
-LoadDotEnv(YamlEnvironment.ResolvePath(Path.Combine("database", ".env")), processEnvironmentKeys);
 YamlEnvironment.Load("config.yaml", processEnvironmentKeys);
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -57,6 +56,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/";
 });
 builder.Services.AddScoped<DeveloperIdentityStore>();
+builder.Services.AddScoped<MfaReplayStore>();
 builder.Services.AddScoped<PalsDataStore>();
 
 var app = builder.Build();
@@ -97,6 +97,14 @@ app.Use(async (context, next) =>
     }
 
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    if (path.StartsWith("/dev", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/oauth", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Cache-Control"] = "no-store";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+    }
     if (path.Equals("/pals.html", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("/pages/", StringComparison.OrdinalIgnoreCase)
         || path.Equals("/scripts/pals.js", StringComparison.OrdinalIgnoreCase)
@@ -123,8 +131,11 @@ static void LoadDotEnv(string? path, ISet<string> processEnvironmentKeys)
         if (separator <= 0) continue;
         var key = value[..separator].Trim();
         var setting = value[(separator + 1)..].Trim().Trim('"', '\'');
+        // Keep one non-secret configuration source: server/config.yaml.
+        // The database password is the only value allowed in server/.env.
         if (string.IsNullOrWhiteSpace(key)
             || string.IsNullOrWhiteSpace(setting)
+            || !key.Equals("DB_PASSWORD", StringComparison.OrdinalIgnoreCase)
             || processEnvironmentKeys.Contains(key)) continue;
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
             Environment.SetEnvironmentVariable(key, setting);

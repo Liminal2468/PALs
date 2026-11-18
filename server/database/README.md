@@ -1,5 +1,10 @@
 # PALs database API
 
+> **Legacy Node-line reference:** this document describes the retired Node
+> database module. The active .NET DBSERV uses `server/config.yaml` for
+> non-secret settings and `server/.env` only for `DB_PASSWORD`; do not use the
+> Node setup commands below for the current server.
+
 This workspace module runs inside the single Node.js API process in `server/`,
 beside MariaDB on the database host. MariaDB itself is provisioned and
 configured separately. The module accepts short-lived RS256 JWTs issued by the

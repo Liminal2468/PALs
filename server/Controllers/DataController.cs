@@ -48,6 +48,16 @@ public sealed class DataController : ControllerBase
             : await identity.AuthenticateAsync(email, password, cancellationToken);
         if (credential is null || credential.Role is not ("admin" or "developer"))
             return Unauthorized(Error("invalid_credentials", "The administrator email or password is incorrect."));
+        if (identity.RequiresMfa(credential) && !credential.TwoFactorEnabled)
+            return StatusCode(StatusCodes.Status428PreconditionRequired, Error("mfa_setup_required", "Set up an authenticator app before signing in to this privileged account."));
+        if (credential.TwoFactorEnabled)
+        {
+            var code = String(body, "mfaCode");
+            if (string.IsNullOrWhiteSpace(code))
+                return Unauthorized(Error("mfa_required", "Enter the code from your authenticator app."));
+            if (!await identity.VerifyAuthenticatorCodeAsync(credential.User, code, cancellationToken))
+                return Unauthorized(Error("invalid_mfa_code", "The authenticator code is incorrect or has expired."));
+        }
         var user = await store.FindUserAsync(credential.Email, cancellationToken);
         if (user is null) return Unauthorized(Error("invalid_credentials", "The administrator account is not active."));
         var sessionKey = await store.CreateSessionAsync(user, cancellationToken);

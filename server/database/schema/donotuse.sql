@@ -1,6 +1,6 @@
 -- Adds Dev accounts on DBSERV side
 
-USE palsysdb;
+USE devpals;
 
 START TRANSACTION;
 
@@ -63,7 +63,7 @@ COMMIT;
 
 -- Deleting them
 
-USE palsysdb;
+USE devpals;
 
 START TRANSACTION;
 

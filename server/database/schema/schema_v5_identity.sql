@@ -3,7 +3,7 @@
 -- This preserves PALs users/roles and links an Identity user through pal_user_id.
 -- Do not insert plaintext passwords. Use the server seed command instead.
 
-USE palsysdb;
+USE devpals;
 
 START TRANSACTION;
 

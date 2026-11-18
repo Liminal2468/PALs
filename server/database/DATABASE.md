@@ -57,34 +57,32 @@ ALTER USER 'dbpals'@'127.0.0.1'
   IDENTIFIED BY 'REPLACE_WITH_A_NEW_UNIQUE_STRONG_PASSWORD';
 ```
 
-After changing it in MariaDB, update `DB_PASSWORD` in
-`server/database/.env` to the same value and restart the Node API so its
-connection pool uses the new password. Treat the `.env` file as a secret:
-setup creates it with owner-only permissions; keep it out of source control
-and preserve restrictive permissions when editing or deploying it.
+After changing it in MariaDB, update `DB_PASSWORD` in `server/.env` to the
+same value and restart DBSERV. Treat the `.env` file as a secret: keep it out
+of source control and preserve restrictive permissions when editing or
+deploying it.
 
-## Configure the database API
+## Configure DBSERV
 
-Run the server setup once from `server/database`:
+The active server has one non-secret configuration file. From `server/`, create
+the local files:
 
 ```bash
-./setup.sh
+cp config.example.yaml config.yaml
+cp .example.env .env
 ```
 
-This creates `server/database/.env` from `.env.example` if it does not already
-exist. Set the MariaDB connection values there:
+Edit `config.yaml` for the MariaDB connection and table allowlist:
 
-```dotenv
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=dbpals
-DB_PASSWORD="REPLACE_WITH_THE_SAME_SECRET_SET_FOR_DBPALS"
-DB_NAME=palsysdb
+```yaml
+DB_HOST: 127.0.0.1
+DB_PORT: 3306
+DB_USER: dbpals
+DB_NAME: palsysdb
 ```
 
-Replace the `DB_PASSWORD` placeholder with the password configured in
-MariaDB. The API rejects resources not listed here. Keep the password quoted if it
-contains characters that dotenv might interpret as syntax.
+Set only `DB_PASSWORD` in `.env`. The password is deliberately ignored in
+YAML. The API rejects resources not listed in `DB_ALLOWED_TABLES`.
 
 > [!NOTE]
 > The tables in `DB_ALLOWED_TABLES` are preset tables that are aligned with the current schema version. Use comma's to add more tables.
@@ -96,13 +94,12 @@ for the password without placing it in the command:
 mariadb --host=127.0.0.1 --port=3306 --user=dbpals --password palsysdb
 ```
 
-Then start the API from the `server/` directory:
+Then start DBSERV from the `server/` directory:
 
 ```bash
-npm start
+./run
 ```
 
-The Node database service reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`,
-`DB_NAME`, and `DB_ALLOWED_TABLES` from `server/database/.env`. This is the
-MariaDB credential for the database service; the Mentos host authenticates to
-the service separately with its short-lived JWT and signing key.
+The .NET DBSERV host reads non-secret settings from `server/config.yaml` and
+reads only `DB_PASSWORD` from `server/.env` or the process environment. The
+Mentos host authenticates to DBSERV separately with `HOST_SHARED_KEY`.

@@ -25,7 +25,9 @@ and the reviewed MariaDB script is
 [`database/schema/schema_v5_identity.sql`](database/schema/schema_v5_identity.sql).
 The frontend feature migration is
 [`database/schema/schema_v6_frontend_features.sql`](database/schema/schema_v6_frontend_features.sql).
-Neither script is applied automatically.
+The TOTP replay-protection script is
+[`database/schema/schema_v8_mfa.sql`](database/schema/schema_v8_mfa.sql).
+These scripts are not applied automatically.
 
 ## Run locally
 
@@ -74,7 +76,8 @@ through v4 PALs schemas preserve the general account and feature structures;
 `schema_v5_identity.sql` adds the linked ASP.NET Identity persistence tables;
 `schema_v6_frontend_features.sql` adds resources, feedback, and support tables;
 `schema_v7_sessions_schedule.sql` adds persistent HOST sessions and calendar
-events. Neither script is applied automatically.
+events; `schema_v8_mfa.sql` adds short-lived hashed TOTP replay protection.
+Neither script is applied automatically.
 Earlier Node-line copies remain under
 [`bindoc/build/v2-nodeline/builddocs/schemas/`](../bindoc/build/v2-nodeline/builddocs/schemas/)
 as migration references.
@@ -82,6 +85,28 @@ as migration references.
 Do not expose MariaDB/MySQL directly to HOST clients. The future database
 layer must continue to enforce table allowlisting, parameterized queries,
 ownership checks, and route-level authorization.
+
+## TOTP developer MFA
+
+PALs owns the authentication flow. Google Authenticator is supported as a
+standard TOTP client; Google Sign-In is not used as an external identity
+provider. ASP.NET Identity stores the authenticator configuration and the
+server verifies the code. The short-lived replay table stores only a SHA-256
+digest of a successfully used code.
+
+After signing in to the developer interface, start setup and confirm the code
+from the authenticator app:
+
+```bash
+curl -b cookies.txt -c cookies.txt -X POST http://127.0.0.1:8432/dev/mfa/setup
+curl -b cookies.txt -c cookies.txt -X POST http://127.0.0.1:8432/dev/mfa/confirm -H 'Content-Type: application/json' -d '{"code":"123456"}'
+```
+
+The setup response contains an `otpauth://` URI and manual key. Recovery codes
+are returned only once; store them securely and do not commit or log them.
+Set `MFA_REQUIRE_PRIVILEGED: true` in local configuration only after the
+privileged accounts have completed setup. The default is `false` to permit
+controlled migration of existing development accounts.
 
 ## Node-line recovery
 

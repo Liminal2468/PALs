@@ -2,7 +2,7 @@
 -- Apply after schema_v1.sql. The CREATE statements are idempotent so this is
 -- also safe when schema_v3_auth.sql has already created admin_credentials.
 
-USE palsysdb;
+USE devpals;
 
 CREATE TABLE IF NOT EXISTS admin_credentials (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

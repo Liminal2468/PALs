@@ -55,7 +55,8 @@ server/
 ├── Data/                    parameterized PALs data-store boundary
 ├── Identity/                ASP.NET Identity models, seed, and migrations
 ├── public/                  preserved developer interface
-├── database/.env            local ignored configuration; never commit
+├── config.yaml              local non-secret configuration; never commit
+├── .env                     DB_PASSWORD only; never commit
 └── run                      .NET launcher
 ```
 
@@ -88,3 +89,18 @@ The previous implementation is archived under
 [build/v2-nodeline/builddocs/schemas/](build/v2-nodeline/builddocs/schemas/).
 The archive excludes credentials, private keys, dependency trees, virtual
 environments, caches, and generated output.
+
+## Active architecture flow maps
+
+Mermaid diagrams for the active .NET services are under
+`bindoc/maindoc/flows/`:
+
+```text
+flows/
+├── server-mentos.md                         high-level HOST/DBSERV topology
+├── server-restapi.md                         public/private REST boundary
+├── server-database.md                        DBSERV persistence paths
+├── mentos-server.md                          HOST request forwarding
+├── mentos-server-database.md                 full request/data path
+└── authentication-flow-pre-established.md    current and planned auth flows
+```
