@@ -58,6 +58,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<DeveloperIdentityStore>();
 builder.Services.AddScoped<MfaReplayStore>();
 builder.Services.AddScoped<PalsDataStore>();
+builder.Services.AddSingleton<PendingLoginStore>();
 
 var app = builder.Build();
 
@@ -77,8 +78,11 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? string.Empty;
-    var blockedPaths = new[] { "/controllers/", "/.git/", "/obj/", "/bin/" };
-    if (blockedPaths.Any(segment => path.Contains(segment, StringComparison.OrdinalIgnoreCase)))
+    var blockedPaths = new[] { "/controllers/", "/configuration/", "/data/", "/identity/", "/.git/", "/obj/", "/bin/", "/.history/", "/storage/" };
+    var blockedSuffixes = new[] { ".cs", ".csproj", ".sln", ".env", ".yaml", ".yml", ".pem", ".key", ".p12", ".pdb" };
+    if (path.Contains("..", StringComparison.Ordinal)
+        || blockedPaths.Any(segment => path.Contains(segment, StringComparison.OrdinalIgnoreCase))
+        || blockedSuffixes.Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;

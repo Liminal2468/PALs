@@ -1,3 +1,11 @@
+async function initializeLogin() {
+    const [loginComponent, verifyComponent] = await Promise.all([
+        fetch("/components/login/modal.login.htm").then(response => response.ok ? response.text() : Promise.reject(new Error("Login component unavailable."))),
+        fetch("/components/login/modal.verify.html").then(response => response.ok ? response.text() : Promise.reject(new Error("Verification component unavailable.")))
+    ]);
+    document.getElementById("loginComponent").innerHTML = loginComponent;
+    document.getElementById("verifyComponent").innerHTML = verifyComponent;
+
 const loginDialog = document.getElementById("loginDialog");
 const loginTrigger = document.getElementById("loginTrigger");
 const closeLoginDialog = document.getElementById("closeLoginDialog");
@@ -13,6 +21,9 @@ const adminPassword = document.getElementById("adminPassword");
 const adminMfaLabel = document.getElementById("adminMfaLabel");
 const adminMfaCode = document.getElementById("adminMfaCode");
 const adminMfaHint = document.getElementById("adminMfaHint");
+const verifyDialog = document.getElementById("verifyDialog");
+const verifyForm = document.getElementById("verifyForm");
+const verifyCode = document.getElementById("verifyCode");
 const schoolEmailDomain = "@cubao.sti.edu.ph";
 let adminMfaRequired = false;
 
@@ -135,11 +146,57 @@ userLoginForm.addEventListener("submit", (event) => {
     }).then(async response => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body?.error?.message || "Sign-in failed.");
-        window.location.assign("pals.html");
+        if (!body.verificationRequired) throw new Error("The authentication service did not start a verification attempt.");
+        loginDialog.close();
+        verifyDialog.showModal();
+        verifyCode.focus();
     }).catch(error => {
         userLoginStatus.textContent = error.message;
         userLoginSubmit.disabled = false;
     });
+});
+
+document.getElementById("closeVerifyDialog").addEventListener("click", () => verifyDialog.close());
+verifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = verifyCode.value.trim();
+    const errorElement = document.getElementById("verifyCodeError");
+    const statusElement = document.getElementById("verifyStatus");
+    errorElement.textContent = "";
+    statusElement.textContent = "";
+    if (!/^\d{6}$/.test(code)) {
+        errorElement.textContent = "Enter the six-digit verification code.";
+        verifyCode.reportValidity();
+        return;
+    }
+    const submitButton = verifyForm.querySelector(".login-submit");
+    submitButton.disabled = true;
+    try {
+        const response = await fetch("/api/v1/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ code })
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            if (response.status === 410) {
+                verifyCode.value = "";
+                verifyDialog.close();
+                setLoginView("user");
+                const emailValid = validateSchoolEmail(userEmail, document.getElementById("userEmailError"));
+                userLoginSubmit.disabled = !userEmail.value.trim() || !emailValid || !acceptTerms.checked;
+                document.getElementById("userLoginStatus").textContent = body?.error?.message || "This verification attempt expired. Start a new sign-in.";
+                loginDialog.showModal();
+                return;
+            }
+            throw new Error(body?.error?.message || "Verification failed.");
+        }
+        window.location.assign("/pals");
+    } catch (error) {
+        statusElement.textContent = error.message;
+        submitButton.disabled = false;
+    }
 });
 
 adminLoginForm.addEventListener("submit", async (event) => {
@@ -182,7 +239,7 @@ adminLoginForm.addEventListener("submit", async (event) => {
             }
             throw new Error(body?.error?.message || "Administrator sign-in failed.");
         }
-        window.location.assign("pals.html");
+        window.location.assign("/pals");
     } catch (error) {
         adminLoginStatus.textContent = error.message;
         submitButton.disabled = false;
@@ -199,4 +256,10 @@ loginDialog.addEventListener("click", (event) => {
     if (event.target === loginDialog) {
         loginDialog.close();
     }
+});
+}
+
+initializeLogin().catch(error => {
+    const status = document.getElementById("loginComponent");
+    if (status) status.textContent = error.message;
 });

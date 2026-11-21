@@ -1,133 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0057a8">
-    <meta name="description" content="PALs is a peer-assisted learning community for STI College Cubao Senior High School.">
-    
-    <title>PALs | Learn better, together</title>
-    
-    <link rel="stylesheet" href="styles/login.css">
-</head>
-<body>
-    <header class="page-shell topbar">
-        <div class="brand">
-            <img src="z/pals.png" alt="PALs">
-            <span class="brand-name">Peer-Assisted Learning System</span>
-        </div>
-        <div class="header-actions">
-            <nav class="utility-links" aria-label="Support">
-                <a class="utility-link" href="contactsupport.html">Contact support</a>
-                <a class="utility-link" href="faqs.html">FAQs</a>
-            </nav>
-            <button class="login-link" id="loginTrigger" type="button" aria-haspopup="dialog" aria-controls="loginDialog">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                    <path d="m10 17 5-5-5-5"/>
-                    <path d="M15 12H3"/>
-                </svg>
-                Log in
-            </button>
-        </div>
-    </header>
-
-    <dialog class="login-dialog" id="loginDialog" aria-labelledby="loginDialogTitle" aria-describedby="loginDialogDescription">
-        <div class="dialog-header">
-            <div>
-                <h2 id="loginDialogTitle">Sign in to PALs</h2>
-                <p id="loginDialogDescription">Use your STI College Cubao school account.</p>
-            </div>
-            <button class="dialog-close" id="closeLoginDialog" type="button" aria-label="Close login options">&times;</button>
-        </div>
-        <div class="login-choice-list" id="loginChoices">
-            <button class="login-choice login-choice-user" id="userLoginChoice" type="button">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path fill="#f25022" d="M2 2h9.5v9.5H2z"/>
-                    <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z"/>
-                    <path fill="#00a4ef" d="M2 12.5h9.5V22H2z"/>
-                    <path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z"/>
-                </svg>
-                <span>User: Continue with Microsoft Entra ID</span>
-            </button>
-            <button class="login-choice login-choice-admin" id="adminLoginChoice" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 3 4.5 6v5.5c0 4.7 3.2 7.8 7.5 9.5 4.3-1.7 7.5-4.8 7.5-9.5V6L12 3Z"/>
-                    <path d="m9 12 2 2 4-4"/>
-                </svg>
-                <span>Admin log in</span>
-            </button>
-        </div>
-        <form class="login-form" id="userLoginForm" novalidate hidden>
-            <button class="login-back" type="button">← Login options</button>
-            <label for="userEmail">School email</label>
-            <input
-                class="school-email"
-                id="userEmail"
-                name="email"
-                type="email"
-                autocomplete="username"
-                placeholder="name@cubao.sti.edu.ph"
-                aria-describedby="userEmailHint userEmailError userLoginStatus"
-                required>
-            <p class="email-hint" id="userEmailHint">Use an account ending in @cubao.sti.edu.ph.</p>
-            <p class="email-error" id="userEmailError" aria-live="polite"></p>
-            <label class="terms-acceptance">
-                <input id="acceptTerms" name="acceptTerms" type="checkbox" required>
-                <span>I agree to the <a href="#termsDialog" id="openTerms" aria-haspopup="dialog" aria-controls="termsDialog">Terms &amp; Service</a>.</span>
-            </label>
-            <button class="login-submit" type="submit" disabled>
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path fill="#f25022" d="M2 2h9.5v9.5H2z"/>
-                    <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z"/>
-                    <path fill="#00a4ef" d="M2 12.5h9.5V22H2z"/>
-                    <path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z"/>
-                </svg>
-                <span>Continue with Microsoft Entra ID</span>
-            </button>
-            <p class="login-status" id="userLoginStatus" role="status" aria-live="polite"></p>
-        </form>
-        <form class="login-form" id="adminLoginForm" novalidate hidden>
-            <button class="login-back" type="button">← Login options</button>
-            <label for="adminEmail">Admin school email</label>
-            <input
-                class="school-email"
-                id="adminEmail"
-                name="email"
-                type="email"
-                autocomplete="username"
-                placeholder="admin@cubao.sti.edu.ph"
-                aria-describedby="adminEmailHint adminEmailError adminLoginStatus"
-                required>
-            <p class="email-hint" id="adminEmailHint">Admin accounts must also end in @cubao.sti.edu.ph.</p>
-            <p class="email-error" id="adminEmailError" aria-live="polite"></p>
-            <label for="adminPassword">Password</label>
-            <input
-                class="school-email"
-                id="adminPassword"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                required>
-            <label for="adminMfaCode" id="adminMfaLabel" hidden>Authenticator code</label>
-            <input
-                class="school-email"
-                id="adminMfaCode"
-                name="mfaCode"
-                type="text"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                pattern="[0-9 ]{6,8}"
-                minlength="6"
-                maxlength="8"
-                placeholder="123456"
-                aria-describedby="adminMfaHint adminLoginStatus"
-                hidden>
-            <p class="email-hint" id="adminMfaHint" hidden>Enter the current code from Google Authenticator or another TOTP app.</p>
-            <button class="login-submit" type="submit" disabled>Admin log in</button>
-            <p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>
-        </form>
-    </dialog>
+@{
+    ViewData["Title"] = "PALs | Learn better, together";
+    ViewData["Description"] = "PALs is a peer-assisted learning community for STI College Cubao Senior High School.";
+    ViewData["Stylesheet"] = "/styles/login.css";
+    ViewData["PageType"] = "landing";
+    ViewData["Scripts"] = new[] { "/scripts/login.js" };
+}
+<div id="loginComponent" aria-live="polite"></div>
+    <div id="verifyComponent" aria-live="polite"></div>
 
     <dialog class="terms-dialog" id="termsDialog" aria-labelledby="termsTitle">
         <div class="dialog-header">
@@ -143,7 +22,7 @@
             <h2>I. Eligibility and Account Registration</h2>
             <ol>
                 <li>PALs is intended exclusively for Senior High School students of STI College Cubao.</li>
-                <li>Users must register and access PALs using their official STI College Cubao eLMS account (@cubao.sti.edu.ph).</li>
+                <li>Users must register and access PALs using their official STI College Cubao eLMS account (@@cubao.sti.edu.ph).</li>
                 <li>Users must provide accurate, complete, and updated information when creating or updating their profiles.</li>
                 <li>Each user may only use their own account. Account sharing, impersonation, or unauthorized use of another person's account is prohibited.</li>
                 <li>Users are responsible for maintaining the confidentiality and security of their login credentials.</li>
@@ -320,7 +199,7 @@
                 <p class="eyebrow">STI College Cubao · Senior High School</p>
                 <h1 id="banner-title">Learn better, together.</h1>
                 <p class="banner-description">Find support, share what you know, and make every learning moment count with PALs.</p>
-                <a class="banner-link" href="pals.html">
+                <a class="banner-link" href="/pals">
                     Explore PALs
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M5 12h14"/>
@@ -350,8 +229,3 @@
             </div>
         </section>
     </main>
-
-    <footer class="page-shell">PALs · Peer-Assisted Learning System</footer>
-    <script src="scripts/login.js" defer></script>
-</body>
-</html>

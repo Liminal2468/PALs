@@ -1,5 +1,13 @@
 # Mentos HOST change log
 
+## 2026-11-21 — Componentized student login and temporary verification route
+
+- **Frontend:** Moved the existing login dialog markup into `mentos/public/components/login/modal.login.htm` without changing the login styles or class names. Added `modal.verify.html` using the same modal classes and load both fragments from the landing page.
+- **Verification flow:** After student sign-in, Mentos now opens the verification panel and calls `/api/v1/verify?code=...`. `WebendVerify` extends the Webend controller and forwards the request privately to DBSERV.
+- **DBSERV:** Added the host-key-protected `/verify` route. It currently accepts only six-digit format-valid codes and returns a temporary success response.
+- **TODO:** Replace format-only acceptance with the approved global TOTP generator and verification-email transaction after the bindoc/testdoc verification tests are ready. The temporary route is not proof of identity.
+- **Verification:** `dotnet build --no-restore` passed for both projects and `node --check mentos/public/scripts/login.js` passed. No styles were changed and no deployment was performed.
+
 ## 2026-11-15 — Repair local executable permissions before startup
 
 - **Files changed:** `mentos/bin/permchk`, `mentos/run`

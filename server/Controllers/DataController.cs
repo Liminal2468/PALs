@@ -13,12 +13,23 @@ public sealed class DataController : ControllerBase
 {
     private readonly PalsDataStore store;
     private readonly DeveloperIdentityStore identity;
+    private readonly PendingLoginStore pendingLogins;
+    private readonly IWebHostEnvironment environment;
     private readonly string hostKey;
+    private const string DevelopmentLoginEmail = "student.123456@cubao.sti.edu.ph";
+    private const string TermsVersion = "pals-terms-v1";
 
-    public DataController(PalsDataStore store, DeveloperIdentityStore identity, IConfiguration configuration)
+    public DataController(
+        PalsDataStore store,
+        DeveloperIdentityStore identity,
+        PendingLoginStore pendingLogins,
+        IWebHostEnvironment environment,
+        IConfiguration configuration)
     {
         this.store = store;
         this.identity = identity;
+        this.pendingLogins = pendingLogins;
+        this.environment = environment;
         hostKey = configuration["HOST_SHARED_KEY"] ?? "";
     }
 
@@ -30,8 +41,54 @@ public sealed class DataController : ControllerBase
         if (!IsSchoolEmail(email)) return Unauthorized(Error("account_not_recognized", "The account format is not recognized."));
         var termsAccepted = body.TryGetProperty("termsAccepted", out var terms) && terms.ValueKind == JsonValueKind.True;
         if (!termsAccepted) return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
-        await store.ProvisionStudentAsync(email!, cancellationToken);
-        var user = await store.FindUserAsync(email!, cancellationToken);
+#if DEBUG
+        if (!environment.IsDevelopment())
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_unavailable", "Email verification is not configured."));
+        if (!email!.Equals(DevelopmentLoginEmail, StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(Error("account_not_recognized", "Use the fixed Development test account."));
+
+        var pending = pendingLogins.Create(email, termsAccepted);
+        if (pending is null)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_capacity_reached", "Sign-in is temporarily unavailable. Try again later."));
+        Console.WriteLine($"TODO: Replace this Development-only verification-code output with AWS SES. Code: {pending.Code}");
+        return Ok(new { attemptId = pending.AttemptId, expiresInSeconds = pending.ExpiresInSeconds });
+#else
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_unavailable", "Email verification is not configured."));
+#endif
+    }
+
+    [HttpPost("auth/verify")]
+    public async Task<IActionResult> VerifyLogin([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        if (!TrustedHost()) return Forbid();
+        var attemptId = String(body, "attemptId");
+        var code = String(body, "code");
+        if (string.IsNullOrWhiteSpace(attemptId) || code is null || code.Length != 6 || !code.All(char.IsAsciiDigit))
+            return BadRequest(Error("invalid_verification_code", "Verification code must contain exactly six digits."));
+
+        var verification = pendingLogins.Verify(attemptId, code);
+        if (verification.Status != PendingLoginVerificationStatus.Verified)
+        {
+            var (statusCode, errorCode, message) = verification.Status switch
+            {
+                PendingLoginVerificationStatus.InvalidCode =>
+                    (StatusCodes.Status400BadRequest, "invalid_verification_code", "The verification code is incorrect."),
+                PendingLoginVerificationStatus.Expired =>
+                    (StatusCodes.Status410Gone, "verification_attempt_expired", "The verification attempt has expired."),
+                PendingLoginVerificationStatus.AttemptsExceeded =>
+                    (StatusCodes.Status410Gone, "verification_attempts_exceeded", "Too many incorrect codes were entered."),
+                _ =>
+                    (StatusCodes.Status410Gone, "verification_attempt_not_found", "The verification attempt is no longer available."),
+            };
+            return StatusCode(statusCode, Error(errorCode, message));
+        }
+
+        if (verification.Email is null || !verification.TermsAccepted)
+            return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_login_attempt", "The verification attempt could not be completed."));
+
+        await store.ProvisionStudentAsync(verification.Email, cancellationToken);
+        await store.RecordTermsAcceptanceAsync(verification.Email, TermsVersion, cancellationToken);
+        var user = await store.FindUserAsync(verification.Email, cancellationToken);
         if (user is null) return Unauthorized(Error("account_not_recognized", "The account is not active."));
         var sessionKey = await store.CreateSessionAsync(user, cancellationToken);
         return Ok(new { sessionKey, account = new { email = user.Email, role = user.Role, status = user.Status } });
@@ -96,19 +153,8 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        var rows = await store.QueryAsync("""
-            SELECT u.id, u.email, u.display_name, u.account_status, sp.grade_level, sp.strand, sp.timezone
-            FROM users u LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE u.id = @id LIMIT 1
-            """, cancellationToken, ("@id", current.User!.Id));
-        var account = rows.SingleOrDefault() ?? new Dictionary<string, object?>
-        {
-            ["id"] = current.User.Id,
-            ["email"] = current.User.Email,
-            ["display_name"] = current.User.DisplayName,
-            ["role"] = current.User.Role,
-            ["account_status"] = current.User.Status
-        };
-        return Ok(new { account });
+        var account = await store.GetProfileAsync(current.User!.Id, cancellationToken);
+        return account is null ? Unauthorized(Error("authentication_required", "The account is not active.")) : Ok(new { account });
     }
 
     [HttpGet("dashboard")]
@@ -131,18 +177,41 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        var displayName = String(body, "displayName");
-        if (!string.IsNullOrWhiteSpace(displayName))
-            await store.ExecuteAsync("UPDATE users SET display_name = @name WHERE id = @id", cancellationToken, ("@name", displayName.Trim()), ("@id", current.User!.Id));
-        var grade = String(body, "grade")?.Replace("Grade ", "", StringComparison.OrdinalIgnoreCase);
-        var strand = String(body, "section");
-        if (byte.TryParse(grade, out var gradeLevel) && !string.IsNullOrWhiteSpace(strand))
+        var displayName = String(body, "displayName")?.Trim();
+        if (body.TryGetProperty("displayName", out _) && string.IsNullOrWhiteSpace(displayName))
+            return BadRequest(Error("display_name_required", "A display name is required."));
+        if (displayName?.Length > 120) return BadRequest(Error("display_name_too_long", "The display name is too long."));
+
+        var gradeText = String(body, "grade")?.Replace("Grade ", "", StringComparison.OrdinalIgnoreCase).Trim();
+        int? grade = null;
+        if (body.TryGetProperty("grade", out _))
         {
-            await store.ExecuteAsync("""
-                INSERT INTO student_profiles (user_id, grade_level, strand)
-                VALUES (@user, @grade, @strand)
-                ON DUPLICATE KEY UPDATE grade_level = VALUES(grade_level), strand = VALUES(strand), updated_at = CURRENT_TIMESTAMP(3)
-                """, cancellationToken, ("@user", current.User!.Id), ("@grade", gradeLevel), ("@strand", strand.Trim()));
+            if (!int.TryParse(gradeText, out var parsedGrade) || parsedGrade is < 11 or > 12)
+                return BadRequest(Error("invalid_grade", "Grade must be Grade 11 or Grade 12."));
+            grade = parsedGrade;
+        }
+
+        var section = String(body, "section")?.Trim();
+        if (section?.Length > 40) return BadRequest(Error("section_too_long", "The section is too long."));
+        var bio = String(body, "bio");
+        if (bio?.Length > 300) return BadRequest(Error("bio_too_long", "The bio is too long."));
+
+        var roles = Strings(body, "roles");
+        if (InvalidArray(body, "roles") || InvalidArray(body, "subjects"))
+            return BadRequest(Error("invalid_profile_selection", "Roles and subjects must be arrays."));
+        if (roles is not null && roles.Any(role => role is not ("tutor" or "tutee")))
+            return BadRequest(Error("invalid_profile_role", "Only tutor and tutee roles can be selected here."));
+        var subjects = Strings(body, "subjects");
+        if (subjects is not null && (subjects.Count > 20 || subjects.Any(subject => subject.Length is 0 or > 160)))
+            return BadRequest(Error("invalid_subject_selection", "The subject selection is invalid."));
+
+        try
+        {
+            await store.UpdateProfileAsync(current.User!.Id, displayName, grade, section, bio, roles, subjects, cancellationToken);
+        }
+        catch (ProfileRequirementsException exception)
+        {
+            return BadRequest(Error("profile_fields_required", exception.Message));
         }
         return await Me(cancellationToken);
     }
@@ -153,7 +222,73 @@ public sealed class DataController : ControllerBase
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
         if (!Privileged(current.User!)) return Forbidden("Only administrators can list accounts.");
-        return Ok(new { items = await store.QueryAsync("SELECT id, email, display_name, account_status, created_at FROM users ORDER BY email", cancellationToken) });
+        var accounts = await store.ListAccountSummariesAsync(cancellationToken);
+        return Ok(new { items = accounts.Select(AccountDto) });
+    }
+
+    [HttpPatch("users/{id:long}")]
+    public async Task<IActionResult> UpdateUser(long id, [FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        if (!Privileged(current.User!)) return Forbidden("Only administrators can manage accounts.");
+
+        var target = await store.FindAccountSummaryAsync(id, cancellationToken);
+        if (target is null) return NotFound(Error("account_not_found", "The account was not found."));
+        var status = String(body, "accountStatus") ?? String(body, "status");
+        if (status is not null && status is not ("pending" or "active" or "suspended" or "disabled"))
+            return BadRequest(Error("invalid_account_status", "The account status is invalid."));
+        var roles = Strings(body, "roles");
+        if (InvalidArray(body, "roles")) return BadRequest(Error("invalid_account_role", "Roles must be an array."));
+        if (roles is not null && roles.Any(role => role is not ("tutor" or "tutee")))
+            return BadRequest(Error("invalid_account_role", "Only tutor and tutee roles can be managed here."));
+        if (status is null && roles is null)
+            return BadRequest(Error("account_update_empty", "Provide an account status or roles to update."));
+        if (target.Roles.Any(role => role is "admin" or "developer") && roles is not null)
+            return Forbidden("Privileged roles cannot be changed through this account-management route.");
+
+        var updated = await store.UpdateAccountAsync(current.User!.Id, id, status, roles, cancellationToken);
+        return updated is null ? NotFound(Error("account_not_found", "The account was not found.")) : Ok(new { account = AccountDto(updated) });
+    }
+
+    [HttpGet("pages")]
+    public async Task<IActionResult> Pages(CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        var pages = await store.ListPagesAsync(cancellationToken);
+        if (!Privileged(current.User!))
+        {
+            var currentRole = current.User!.Role;
+            pages = pages.Where(page =>
+            {
+                var enabled = page["isEnabled"] is true;
+                var allowed = page["allowedRoles"] as string[] ?? [];
+                return enabled && (allowed.Length == 0 || allowed.Contains(currentRole, StringComparer.OrdinalIgnoreCase));
+            }).ToArray();
+        }
+        return Ok(new { items = pages });
+    }
+
+    [HttpPatch("pages/{id:long}")]
+    public async Task<IActionResult> UpdatePage(long id, [FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        if (!Privileged(current.User!)) return Forbidden("Only administrators can manage page metadata.");
+        var title = String(body, "title");
+        if (title?.Length > 120) return BadRequest(Error("page_title_too_long", "The page title is too long."));
+        var enabled = Boolean(body, "isEnabled", null);
+        var showInNavigation = Boolean(body, "showInNavigation", null);
+        var allowedRoles = Strings(body, "allowedRoles");
+        if (InvalidArray(body, "allowedRoles")) return BadRequest(Error("invalid_page_roles", "Allowed roles must be an array."));
+        if (allowedRoles is not null && allowedRoles.Any(role => role is not ("student" or "tutor" or "tutee" or "admin" or "developer")))
+            return BadRequest(Error("invalid_page_roles", "The page role visibility is invalid."));
+        if (title is null && enabled is null && showInNavigation is null && allowedRoles is null)
+            return BadRequest(Error("page_update_empty", "Provide page metadata to update."));
+
+        var page = await store.UpdatePageAsync(current.User!.Id, id, title, enabled, showInNavigation, allowedRoles, cancellationToken);
+        return page is null ? NotFound(Error("page_not_found", "The page was not found.")) : Ok(new { page });
     }
 
     [HttpGet("tutors")]
@@ -249,11 +384,15 @@ public sealed class DataController : ControllerBase
         var end = String(body, "scheduledEndUtc");
         if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(start) || string.IsNullOrWhiteSpace(end))
             return BadRequest(Error("session_fields_required", "Subject, start, and end are required."));
+        var scheduledStart = ParseDate(start);
+        var scheduledEnd = ParseDate(end);
+        if (scheduledStart is null || scheduledEnd is null || scheduledEnd <= scheduledStart)
+            return BadRequest(Error("invalid_session_time", "The session end must be after the start."));
         var subjectId = await SubjectId(subject!, cancellationToken);
         var sessionId = await store.ScalarAsync("""
             INSERT INTO study_sessions (session_type, subject_id, created_by_user_id, scheduled_start_utc, scheduled_end_utc)
             VALUES ('one_to_one', @subject, @user, @start, @end); SELECT LAST_INSERT_ID();
-            """, cancellationToken, ("@subject", subjectId), ("@user", current.User!.Id), ("@start", start), ("@end", end));
+            """, cancellationToken, ("@subject", subjectId), ("@user", current.User!.Id), ("@start", scheduledStart), ("@end", scheduledEnd));
         await store.ExecuteAsync("INSERT INTO session_participants (study_session_id, user_id, participant_role, participation_status) VALUES (@session, @user, 'tutee', 'accepted')", cancellationToken, ("@session", sessionId), ("@user", current.User.Id));
         return Ok(new { id = sessionId, status = "created" });
     }
@@ -264,8 +403,27 @@ public sealed class DataController : ControllerBase
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
         var status = String(body, "status");
-        var changed = await store.ExecuteAsync("UPDATE study_sessions SET session_status = @status WHERE id = @id AND created_by_user_id = @user", cancellationToken, ("@status", status), ("@id", id), ("@user", current.User!.Id));
-        return changed == 0 ? NotFound(Error("session_not_found", "The session was not found or is not owned by this account.")) : Ok(new { status = "updated" });
+        if (status is not ("confirmed" or "cancelled" or "completed" or "no_show"))
+            return BadRequest(Error("invalid_session_status", "The session status is invalid."));
+        var existing = await store.QueryAsync("""
+            SELECT ss.session_status
+            FROM study_sessions ss
+            WHERE ss.id = @id AND (ss.created_by_user_id = @user OR EXISTS (SELECT 1 FROM session_participants sp WHERE sp.study_session_id = ss.id AND sp.user_id = @user AND sp.participation_status IN ('invited', 'accepted')))
+            LIMIT 1
+            """, cancellationToken, ("@id", id), ("@user", current.User!.Id));
+        if (existing.Count == 0) return NotFound(Error("session_not_found", "The session was not found or is not accessible to this account."));
+        var previous = Convert.ToString(existing[0]["session_status"]);
+        var validTransition = previous switch
+        {
+            "requested" => status is "confirmed" or "cancelled",
+            "confirmed" => status is "completed" or "cancelled" or "no_show",
+            _ => false,
+        };
+        if (!validTransition) return Conflict(Error("invalid_session_transition", "The session cannot move from its current status to the requested status."));
+        var changed = await store.ExecuteAsync("UPDATE study_sessions SET session_status = @status WHERE id = @id AND session_status = @previous", cancellationToken, ("@status", status), ("@previous", previous), ("@id", id));
+        if (changed == 0) return Conflict(Error("session_update_conflict", "The session changed before this update completed."));
+        await store.ExecuteAsync("INSERT INTO session_audits (actor_user_id, session_id, previous_status, next_status) VALUES (@actor, @session, @previous, @next)", cancellationToken, ("@actor", current.User!.Id), ("@session", id), ("@previous", previous), ("@next", status));
+        return Ok(new { status = "updated" });
     }
 
     [HttpGet("schedule")]
@@ -336,8 +494,19 @@ public sealed class DataController : ControllerBase
         if (current.Error is not null) return current.Error;
         var title = String(body, "title");
         if (string.IsNullOrWhiteSpace(title)) return BadRequest(Error("title_required", "A resource title is required."));
-        await store.ExecuteAsync("INSERT INTO resources (owner_user_id, title, description, resource_type, resource_url, visibility, moderation_status) VALUES (@user, @title, @description, @type, @url, @visibility, 'pending')", cancellationToken, ("@user", current.User!.Id), ("@title", title), ("@description", String(body, "description")), ("@type", String(body, "resourceType") ?? "link"), ("@url", String(body, "resourceUrl")), ("@visibility", String(body, "visibility") ?? "private"));
-        return Ok(new { status = "created", moderation = "pending" });
+        if (title.Length > 180) return BadRequest(Error("title_too_long", "The resource title is too long."));
+        var description = String(body, "description");
+        if (description?.Length > 4000) return BadRequest(Error("description_too_long", "The resource description is too long."));
+        var resourceUrl = String(body, "resourceUrl");
+        if (!string.IsNullOrWhiteSpace(resourceUrl) && (!Uri.TryCreate(resourceUrl, UriKind.Absolute, out var parsedUrl) || parsedUrl.Scheme is not ("https" or "http")))
+            return BadRequest(Error("invalid_resource_url", "The resource URL must be an absolute HTTP or HTTPS URL."));
+        var resourceType = String(body, "resourceType") ?? "link";
+        var visibility = String(body, "visibility") ?? "private";
+        if (resourceType.Length > 40 || visibility is not ("private" or "community"))
+            return BadRequest(Error("invalid_resource_metadata", "The resource type or visibility is invalid."));
+        var resourceId = await store.ScalarAsync("INSERT INTO resources (owner_user_id, title, description, resource_type, resource_url, visibility, moderation_status) VALUES (@user, @title, @description, @type, @url, @visibility, 'pending'); SELECT LAST_INSERT_ID();", cancellationToken, ("@user", current.User!.Id), ("@title", title.Trim()), ("@description", description), ("@type", resourceType), ("@url", resourceUrl), ("@visibility", visibility));
+        await store.ExecuteAsync("INSERT INTO resource_audits (resource_id, reviewer_user_id, audit_action, notes) VALUES (@resource, @reviewer, 'created', 'Resource submitted for moderation.')", cancellationToken, ("@resource", resourceId), ("@reviewer", current.User.Id));
+        return Ok(new { id = resourceId, status = "created", moderation = "pending" });
     }
 
     [HttpPatch("resources/{id:long}")]
@@ -345,8 +514,16 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        var changed = await store.ExecuteAsync("UPDATE resources SET title = COALESCE(@title, title), description = COALESCE(@description, description), resource_url = COALESCE(@url, resource_url) WHERE id = @id AND owner_user_id = @user", cancellationToken, ("@title", String(body, "title")), ("@description", String(body, "description")), ("@url", String(body, "resourceUrl")), ("@id", id), ("@user", current.User!.Id));
-        return changed == 0 ? NotFound(Error("resource_not_found", "The resource was not found or is not owned by this account.")) : Ok(new { status = "updated" });
+        var title = String(body, "title");
+        var description = String(body, "description");
+        var resourceUrl = String(body, "resourceUrl");
+        if (title?.Length > 180 || description?.Length > 4000) return BadRequest(Error("resource_field_too_long", "The resource data is too long."));
+        if (!string.IsNullOrWhiteSpace(resourceUrl) && (!Uri.TryCreate(resourceUrl, UriKind.Absolute, out var parsedUrl) || parsedUrl.Scheme is not ("https" or "http")))
+            return BadRequest(Error("invalid_resource_url", "The resource URL must be an absolute HTTP or HTTPS URL."));
+        var changed = await store.ExecuteAsync("UPDATE resources SET title = COALESCE(@title, title), description = COALESCE(@description, description), resource_url = COALESCE(@url, resource_url), moderation_status = 'pending' WHERE id = @id AND owner_user_id = @user", cancellationToken, ("@title", title), ("@description", description), ("@url", resourceUrl), ("@id", id), ("@user", current.User!.Id));
+        if (changed == 0) return NotFound(Error("resource_not_found", "The resource was not found or is not owned by this account."));
+        await store.ExecuteAsync("INSERT INTO resource_audits (resource_id, reviewer_user_id, audit_action, notes) VALUES (@resource, @reviewer, 'updated', 'Owner updated the resource; moderation returned to pending.')", cancellationToken, ("@resource", id), ("@reviewer", current.User.Id));
+        return Ok(new { status = "updated", moderation = "pending" });
     }
 
     [HttpDelete("resources/{id:long}")]
@@ -354,8 +531,26 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        var changed = await store.ExecuteAsync("DELETE FROM resources WHERE id = @id AND owner_user_id = @user", cancellationToken, ("@id", id), ("@user", current.User!.Id));
-        return changed == 0 ? NotFound(Error("resource_not_found", "The resource was not found or is not owned by this account.")) : Ok(new { status = "deleted" });
+        var changed = await store.ExecuteAsync("UPDATE resources SET moderation_status = 'removed' WHERE id = @id AND owner_user_id = @user", cancellationToken, ("@id", id), ("@user", current.User!.Id));
+        if (changed == 0) return NotFound(Error("resource_not_found", "The resource was not found or is not owned by this account."));
+        await store.ExecuteAsync("INSERT INTO resource_audits (resource_id, reviewer_user_id, audit_action, notes) VALUES (@resource, @reviewer, 'removed', 'Owner removed the resource.')", cancellationToken, ("@resource", id), ("@reviewer", current.User.Id));
+        return Ok(new { status = "deleted" });
+    }
+
+    [HttpPatch("resources/{id:long}/moderation")]
+    public async Task<IActionResult> ModerateResource(long id, [FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        if (!Privileged(current.User!)) return Forbidden("Only administrators can moderate resources.");
+        var moderationStatus = String(body, "moderationStatus") ?? String(body, "status");
+        if (moderationStatus is not ("visible" or "flagged" or "removed"))
+            return BadRequest(Error("invalid_moderation_status", "The moderation status is invalid."));
+        var changed = await store.ExecuteAsync("UPDATE resources SET moderation_status = @status WHERE id = @id", cancellationToken, ("@status", moderationStatus), ("@id", id));
+        if (changed == 0) return NotFound(Error("resource_not_found", "The resource was not found."));
+        var auditAction = moderationStatus switch { "visible" => "approved", "removed" => "removed", _ => "flagged" };
+        await store.ExecuteAsync("INSERT INTO resource_audits (resource_id, reviewer_user_id, audit_action, notes) VALUES (@resource, @reviewer, @action, @notes)", cancellationToken, ("@resource", id), ("@reviewer", current.User!.Id), ("@action", auditAction), ("@notes", $"Administrator set moderation status to {moderationStatus}."));
+        return Ok(new { status = "updated", moderation = moderationStatus });
     }
 
     [HttpGet("feedback")]
@@ -371,7 +566,12 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        await store.ExecuteAsync("INSERT INTO feedback_posts (author_user_id, title, category, description) VALUES (@user, @title, @category, @description)", cancellationToken, ("@user", current.User!.Id), ("@title", String(body, "title")), ("@category", String(body, "category") ?? "Other"), ("@description", String(body, "description")));
+        var title = String(body, "title")?.Trim();
+        var category = String(body, "category")?.Trim() ?? "Other";
+        var description = String(body, "description")?.Trim();
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description)) return BadRequest(Error("feedback_fields_required", "A feedback title and description are required."));
+        if (title.Length > 120 || category.Length > 80 || description.Length > 2000) return BadRequest(Error("feedback_field_too_long", "The feedback data is too long."));
+        await store.ExecuteAsync("INSERT INTO feedback_posts (author_user_id, title, category, description) VALUES (@user, @title, @category, @description)", cancellationToken, ("@user", current.User!.Id), ("@title", title), ("@category", category), ("@description", description));
         return Ok(new { status = "created" });
     }
 
@@ -389,7 +589,12 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        await store.ExecuteAsync("INSERT INTO support_tickets (requester_user_id, category, subject, message) VALUES (@user, @category, @subject, @message)", cancellationToken, ("@user", current.User!.Id), ("@category", String(body, "category") ?? "Other"), ("@subject", String(body, "subject")), ("@message", String(body, "message")));
+        var category = String(body, "category")?.Trim() ?? "Other";
+        var subject = String(body, "subject")?.Trim();
+        var message = String(body, "message")?.Trim();
+        if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(message)) return BadRequest(Error("support_fields_required", "A support subject and message are required."));
+        if (category.Length > 80 || subject.Length > 180 || message.Length > 4000) return BadRequest(Error("support_field_too_long", "The support request is too long."));
+        await store.ExecuteAsync("INSERT INTO support_tickets (requester_user_id, category, subject, message) VALUES (@user, @category, @subject, @message)", cancellationToken, ("@user", current.User!.Id), ("@category", category), ("@subject", subject), ("@message", message));
         return Ok(new { status = "received" });
     }
 
@@ -398,9 +603,15 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
+        var eventType = String(body, "eventType") ?? "page_view";
+        var featureKey = String(body, "featureKey") ?? "unknown";
+        var duration = Number(body, "durationSeconds");
+        var allowedEvents = new[] { "page_view", "feature_view", "interaction", "session_action", "resource_submit", "feedback_submit", "support_submit" };
+        if (!allowedEvents.Contains(eventType, StringComparer.Ordinal) || featureKey.Length > 80 || duration is < 0 or > 86400)
+            return BadRequest(Error("invalid_analytics_event", "The analytics event is not allowed or contains invalid values."));
         var participant = await store.ScalarAsync("SELECT participant_key FROM research_participants rp JOIN research_consents rc ON rc.user_id = rp.user_id WHERE rp.user_id = @user AND rp.withdrawn_at IS NULL AND rc.withdrawn_at IS NULL LIMIT 1", cancellationToken, ("@user", current.User!.Id));
         if (participant is null) return StatusCode(403, Error("analytics_consent_required", "Research analytics requires active consent."));
-        await store.ExecuteAsync("INSERT INTO analytics_events (participant_key, event_type, feature_key, duration_seconds) VALUES (@participant, @event, @feature, @duration)", cancellationToken, ("@participant", participant), ("@event", String(body, "eventType") ?? "page_view"), ("@feature", String(body, "featureKey") ?? "unknown"), ("@duration", Number(body, "durationSeconds")));
+        await store.ExecuteAsync("INSERT INTO analytics_events (participant_key, event_type, feature_key, duration_seconds) VALUES (@participant, @event, @feature, @duration)", cancellationToken, ("@participant", participant), ("@event", eventType), ("@feature", featureKey), ("@duration", duration));
         return Ok(new { status = "recorded" });
     }
 
@@ -410,6 +621,7 @@ public sealed class DataController : ControllerBase
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
         var version = String(body, "consentVersion") ?? "phase2-v1";
+        if (version.Length > 64) return BadRequest(Error("invalid_consent_version", "The consent version is too long."));
         await store.ExecuteAsync("INSERT INTO research_consents (user_id, consent_type, consent_version) VALUES (@user, 'phase2_usage_analytics', @version)", cancellationToken, ("@user", current.User!.Id), ("@version", version));
         await store.ExecuteAsync("INSERT INTO research_participants (user_id, participant_key) VALUES (@user, UUID()) ON DUPLICATE KEY UPDATE withdrawn_at = NULL", cancellationToken, ("@user", current.User.Id));
         return Ok(new { consented = true, consentVersion = version });
@@ -446,6 +658,13 @@ public sealed class DataController : ControllerBase
     private static IActionResult Forbidden(string message) => new ObjectResult(Error("forbidden", message)) { StatusCode = StatusCodes.Status403Forbidden };
     private static object Error(string code, string message) => new { error = new { code, message } };
     private static string? String(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static List<string>? Strings(JsonElement body, string name)
+    {
+        if (!body.TryGetProperty(name, out var value)) return null;
+        if (value.ValueKind != JsonValueKind.Array) return [];
+        return value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()?.Trim() ?? "").Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+    private static bool InvalidArray(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Array;
     private static int? Number(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : null;
     private static bool? Boolean(JsonElement body, string name, bool? fallback) => body.TryGetProperty(name, out var value) && (value.ValueKind is JsonValueKind.True or JsonValueKind.False) ? value.GetBoolean() : fallback;
     private static DateTime? ParseDate(string? value)
@@ -460,4 +679,5 @@ public sealed class DataController : ControllerBase
         return Convert.ToInt64(await store.ScalarAsync("SELECT id FROM subjects WHERE name = @name LIMIT 1", cancellationToken, ("@name", name.Trim())));
     }
     private static bool IsSchoolEmail(string? email) => email is not null && email.EndsWith("@cubao.sti.edu.ph", StringComparison.OrdinalIgnoreCase) && System.Text.RegularExpressions.Regex.IsMatch(email[..^"@cubao.sti.edu.ph".Length], @"^[a-z]+\.[0-9]{6,}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    private static object AccountDto(PalsAccountSummary account) => new { id = account.Id, email = account.Email, displayName = account.DisplayName, accountStatus = account.Status, role = account.Roles.FirstOrDefault() ?? "student", roles = account.Roles };
 }

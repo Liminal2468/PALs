@@ -33,17 +33,17 @@ and `mentos/Controllers/WebendController.cs`:
 /api/v1/frontend/status
 ```
 
-The account/session implementation is currently an in-memory development
-boundary. It is not yet persisted through the general database or ASP.NET
-Identity. Provider callbacks, signup, admin login, learning requests, tutors,
-tutees, sessions, resources, feedback, and analytics routes remain
-unimplemented until their backend services are connected.
+The account/session implementation uses a DBSERV-backed opaque session cookie.
+Student login remains a school-email-and-terms provisioning compatibility
+facade; admin/developer login uses ASP.NET Identity. OAuth/OIDC, provider
+callbacks, signup, `/connect`, and tutor recommendations remain deferred.
 
 The public pages are served from `mentos/public/`. Login is connected to the
-HOST and `/pals.html` plus `/pages/*` are session-protected. The following
-frontend areas still contain demo or local-only behavior: profile editing,
-home statistics, tutor/tutee records, recommendations, session requests,
-sessions, feedback, resources, analytics, settings, and support submission.
+HOST and `/pals.html` plus `/pages/*` are session-protected. Live hydration
+now covers profile fields, dashboard statistics, tutor/tutee records,
+learning requests, sessions, resources, feedback, support, and consent-aware
+analytics. Tutor recommendations remain deferred; a dedicated administrator
+management screen and resource mutation controls are not yet present.
 
 ## DBSERV
 
@@ -54,6 +54,7 @@ server/
 ├── Controllers/             DBSERV controllers
 ├── Data/                    parameterized PALs data-store boundary
 ├── Identity/                ASP.NET Identity models, seed, and migrations
+├── src/gen                  local HOST_SHARED_KEY generator
 ├── public/                  preserved developer interface
 ├── config.yaml              local non-secret configuration; never commit
 ├── .env                     DB_PASSWORD only; never commit
@@ -81,6 +82,11 @@ unimplemented until the matching algorithm is approved.
 Persistent HOST sessions and calendar events are defined in
 `server/database/schema/schema_v7_sessions_schedule.sql`. Schedule dates are
 accepted as `MM-DD-YY:HH-mm` or ISO input and stored as UTC timestamps.
+
+Profile bio/section/preferences, account and session audits, and safe page
+metadata are defined in
+`server/database/schema/schema_v9_profile_management.sql`. Page management
+changes metadata only and cannot read or write arbitrary application files.
 
 ## Preserved Node-line build
 

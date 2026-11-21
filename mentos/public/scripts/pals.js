@@ -68,14 +68,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function loadPage(pageUrl) {
+    async function loadPage(pageName) {
         try {
-            const response = await fetch(pageUrl);
+            const response = await fetch(`/pals/partial/${encodeURIComponent(pageName)}`, {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
             if (!response.ok) throw new Error(`Request failed with status ${response.status}.`);
             content.innerHTML = await response.text();
-            setActivePage(pageUrl);
+            setActivePage(pageName);
             initializeLoadedPage();
-            window.dispatchEvent(new CustomEvent('pals:page-loaded', { detail: { pageUrl } }));
+            window.dispatchEvent(new CustomEvent('pals:page-loaded', { detail: { pageUrl: pageName } }));
         } catch (error) {
             console.error('Failed to load page:', error);
             content.innerHTML = `<div style="padding:20px;color:var(--text-secondary)">
@@ -98,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeTutors() {
         const cards = [...content.querySelectorAll('[data-tutor-card]')];
         if (!cards.length) return;
+        if (window.PalsLive) return;
         const search = content.querySelector('[data-tutor-search]');
         const subject = content.querySelector('[data-tutor-subject]');
         const availability = content.querySelector('[data-tutor-availability]');
@@ -158,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeTutees() {
         const cards = [...content.querySelectorAll('[data-tutee-card]')];
         if (!cards.length) return;
+        if (window.PalsLive) return;
         const search = content.querySelector('[data-tutee-search]');
         const subject = content.querySelector('[data-tutee-subject]');
         const availability = content.querySelector('[data-tutee-availability]');
@@ -202,34 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeSessions() {
         const list = content.querySelector('[data-session-list]');
         if (!list) return;
-
-        try {
-            const statuses = readStored(keys.sessionStatuses, {});
-            if (!statuses || typeof statuses !== 'object' || Array.isArray(statuses)) {
-                throw new Error('Saved session statuses have an invalid format.');
-            }
-            list.querySelectorAll('[data-demo-session]').forEach(card => {
-                const status = statuses[card.dataset.sessionId];
-                if (['upcoming', 'completed', 'cancelled'].includes(status)) setSessionCardStatus(card, status);
-            });
-
-            const requests = readStored(keys.requests, []);
-            if (!Array.isArray(requests)) throw new Error('Saved session requests have an invalid format.');
-            requests.forEach(request => {
-                if (!request || typeof request.id !== 'string' || typeof request.tutor !== 'string' ||
-                    typeof request.subject !== 'string' || typeof request.preferredTime !== 'string') {
-                    throw new Error('A saved session request has an invalid format.');
-                }
-                list.prepend(createSessionRequestCard(request));
-            });
-        } catch (error) {
-            console.error('Unable to load session data:', error);
-            const status = document.createElement('p');
-            status.className = 'help-error';
-            status.setAttribute('role', 'alert');
-            status.textContent = error.message;
-            list.prepend(status);
-        }
 
         content.querySelector('[data-session-filter]')?.addEventListener('change', updateSessionList);
         updateSessionList();
@@ -329,30 +306,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSessionStatus(card, status) {
         const id = card.dataset.sessionId;
         if (!id) return;
-        try {
-            if (card.hasAttribute('data-session-request')) {
-                const requests = readStored(keys.requests, []);
-                if (!Array.isArray(requests)) throw new Error('Saved session requests have an invalid format.');
-                const updated = requests.map(request => request.id === id ? { ...request, status } : request);
-                saveStored(keys.requests, updated);
-            } else {
-                const statuses = readStored(keys.sessionStatuses, {});
-                if (!statuses || typeof statuses !== 'object' || Array.isArray(statuses)) {
-                    throw new Error('Saved session statuses have an invalid format.');
-                }
-                statuses[id] = status;
-                saveStored(keys.sessionStatuses, statuses);
-            }
-            setSessionCardStatus(card, status);
-            updateSessionList();
-            emit('pals:session-update', { sessionId: id, status });
-        } catch (error) {
-            console.error('Unable to update the session:', error);
-            const feedback = content.querySelector('[data-session-status-message]');
-            if (feedback) {
-                feedback.textContent = error.message || 'Session could not be updated in browser storage.';
-                feedback.hidden = false;
-            }
+        const feedback = content.querySelector('[data-session-status-message]');
+        if (feedback) {
+            feedback.textContent = 'This session is not connected to a live API record.';
+            feedback.hidden = false;
         }
     }
 
@@ -363,8 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const [faqResponse, supportResponse] = await Promise.all([
-                fetch('faqs.html'),
-                fetch('contactsupport.html')
+                fetch('/faqs'),
+                fetch('/contactsupport')
             ]);
             if (!faqResponse.ok) throw new Error(`FAQ content request failed with status ${faqResponse.status}.`);
             if (!supportResponse.ok) throw new Error(`Support content request failed with status ${supportResponse.status}.`);
@@ -544,14 +501,8 @@ document.addEventListener('DOMContentLoaded', () => {
             roles: [...form.querySelectorAll('[name="roles"]:checked')].map(input => input.value),
             subjects: [...form.querySelectorAll('[name="subjects"]:checked')].map(input => input.value)
         };
-        let profile;
-        try {
-            profile = normalizeProfile(readStored(keys.profile, defaultProfile), defaultProfile);
-            applyProfile(form, profile);
-        } catch (error) {
-            setFormStatus(status, error.message, true);
-            profile = defaultProfile;
-        }
+        let profile = defaultProfile;
+        applyProfile(form, profile);
 
         form.addEventListener('submit', event => {
             event.preventDefault();
@@ -568,31 +519,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 setFormStatus(status, 'Enter a display name before saving.', true);
                 return;
             }
-            try {
-                saveStored(keys.profile, updated);
-                profile = updated;
-                applyProfile(form, profile);
-                updateHeader(profile);
-                setFormStatus(status, 'Profile saved on this browser. It is not synced to an account yet.');
-                emit('pals:profile-save', { profile: updated });
-            } catch (error) {
-                console.error('Unable to save the profile:', error);
-                setFormStatus(status, 'Profile could not be saved in browser storage.', true);
-            }
+            setFormStatus(status, 'Profile saving requires the live PALs API.');
         });
 
         content.querySelector('[data-reset-profile]')?.addEventListener('click', () => {
-            try {
-                localStorage.removeItem(keys.profile);
-                profile = defaultProfile;
-                applyProfile(form, profile);
-                updateHeader(profile);
-                setFormStatus(status, 'Demo profile restored.');
-                emit('pals:profile-save', { profile: defaultProfile });
-            } catch (error) {
-                console.error('Unable to reset the profile:', error);
-                setFormStatus(status, 'Demo profile could not be reset.', true);
-            }
+            setFormStatus(status, 'Live profiles cannot be reset from browser storage.');
         });
     }
 
@@ -782,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             email.setCustomValidity('');
-            status.textContent = 'The support form is not connected to a ticketing or email service yet, so your message has not been sent. Please contact the designated PALs support team through your school's approved channel.';
+            status.textContent = 'The live support API is unavailable, so your message has not been sent.';
             return;
         }
 
@@ -790,30 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (requestForm) {
             event.preventDefault();
             const formData = new FormData(requestForm);
-            const request = {
-                id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                tutor: formData.get('tutorId'),
-                role: requestForm.dataset.requestRole || 'tutor',
-                subject: formData.get('subject'),
-                preferredTime: formData.get('preferredTime'),
-                note: formData.get('note'),
-                createdAt: new Date().toISOString(),
-                status: 'requested'
-            };
-            try {
-                const requests = readStored(keys.requests, []);
-                if (!Array.isArray(requests)) throw new Error('Saved session requests have an invalid format.');
-                saveStored(keys.requests, [...requests, request]);
-                setFormStatus(requestForm.querySelector('[data-request-status]'), request.role === 'tutee'
-                    ? 'Offer saved in this browser only. It has not been sent to the student.'
-                    : 'Request saved in this browser only. It has not been sent to the tutor.');
-                emit(request.role === 'tutee' ? 'pals:offer-tutee-session' : 'pals:request-session', { request });
-                requestForm.reset();
-                window.setTimeout(() => requestForm.closest('dialog')?.close(), 1100);
-            } catch (error) {
-                console.error('Unable to save the session request:', error);
-                setFormStatus(requestForm.querySelector('[data-request-status]'), error.message || 'Request could not be saved in browser storage.', true);
-            }
+            setFormStatus(requestForm.querySelector('[data-request-status]'), 'The live learning-request API is unavailable.', true);
             return;
         }
 
@@ -821,28 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (feedbackForm) {
             event.preventDefault();
             const formData = new FormData(feedbackForm);
-            const post = {
-                id: `post-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                title: formData.get('title').toString().trim(),
-                category: formData.get('category').toString(),
-                description: formData.get('description').toString().trim(),
-                author: 'You',
-                createdAt: new Date().toISOString()
-            };
-            try {
-                const posts = readStored(keys.feedback, []);
-                if (!Array.isArray(posts)) throw new Error('Saved feedback data has an invalid format.');
-                saveStored(keys.feedback, [...posts, post]);
-                const list = content.querySelector('[data-feedback-list]');
-                list.prepend(createFeedbackCard(post));
-                updateFeedbackCount();
-                feedbackForm.reset();
-                setFormStatus(content.querySelector('[data-feedback-status]'), 'Post saved in this browser. It is not shared with other users yet.');
-                emit('pals:feedback-create', { post });
-            } catch (error) {
-                console.error('Unable to save feedback:', error);
-                setFormStatus(content.querySelector('[data-feedback-status]'), error.message || 'Post could not be saved in browser storage.', true);
-            }
+            setFormStatus(content.querySelector('[data-feedback-status]'), 'The live feedback API is unavailable.', true);
         }
     });
 
@@ -870,17 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.matchMedia('(max-width: 768px)').matches) shell?.classList.add('collapsed');
     sidebarToggle?.addEventListener('click', () => shell?.classList.toggle('collapsed'));
 
-    try {
-        const profile = readStored(keys.profile, null);
-        if (profile) {
-            updateHeader({
-                displayName: typeof profile.displayName === 'string' ? profile.displayName : 'J. Mike',
-                grade: typeof profile.grade === 'string' ? profile.grade : 'Grade 12',
-                section: typeof profile.section === 'string' ? profile.section : 'ITM302'
-            });
-        }
-    } catch (error) {
-        console.error('Unable to load the saved profile for the header:', error);
-    }
-    loadPage('pages/home.html');
+    updateHeader({ displayName: 'J. Mike', grade: 'Grade 12', section: 'Section not set' });
+    loadPage('home');
 });

@@ -225,3 +225,41 @@
   were preserved. The explanation after the block distinguishes solid active
   behavior from dashed planned OAuth/OIDC behavior.
 
+## 2026-11-18 — Complete backend profile and management foundations
+
+- **Persistence:** Added `server/database/schema/schema_v9_profile_management.sql`
+  for profile bio/section, normalized subject preferences, account audits,
+  session audits, safe page metadata, and page audits. The schema is not
+  applied automatically.
+- **DBSERV:** Added complete profile read/update behavior, safe account
+  summaries, administrator account-status and tutor/tutee-role management,
+  metadata-only page management, validated session transitions, resource
+  auditing and administrator moderation, and bounded consent-gated analytics
+  events.
+- **HOST:** Added explicit Mentos façade routes for account updates, page
+  metadata, and resource moderation. Browser requests still do not call
+  DBSERV directly.
+- **Frontend behavior:** Connected live profile hydration and persistence,
+  live session actions, live directory filtering, live home session data, and
+  consent-aware page-view events. Disabled profile/session/feedback/request
+  browser-storage fallbacks; theme and tutor favorites remain frontend-only
+  preferences. No CSS or style files were changed.
+- **Isolation:** Tightened both ASP.NET static-file boundaries to reject
+  traversal, source/configuration files, and internal application directories.
+- **Verification:** Both .NET projects build with zero warnings/errors and the
+  active Mentos scripts pass `node --check`. Database-backed acceptance still
+  requires applying v9 to the local development database.
+
+## 2026-11-21 — Add local shared-key generator
+
+- **Command:** Added executable `server/src/gen` with `./gen create key`.
+- **Behavior:** Generates a URL-safe `secrets.token_urlsafe(N)` value with a
+  default length of 48, writes it as a mode-600 `.pem` file in a mode-700
+  `.keygen/` directory under the current working directory, and names it with
+  the current Unix time plus the first five characters of its SHA-256 digest.
+- **Print mode:** `-p` and `--print` require explicit confirmation and print
+  the key without creating a file. Generated values were not printed during
+  verification.
+- **Boundary:** This creates the symmetric `HOST_SHARED_KEY` development
+  secret only; RSA/RS256 signing-key generation remains a separate concern.
+

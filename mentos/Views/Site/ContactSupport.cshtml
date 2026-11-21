@@ -1,12 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0057a8">
-    <meta name="description" content="Get help with your PALs account, tutoring sessions, or technical issues.">
-    <title>Contact support | PALs</title>
-    <style>
+@{
+    ViewData["Title"] = "Contact support | PALs";
+    ViewData["Description"] = "Get help with your PALs account, tutoring sessions, or technical issues.";
+    ViewData["PageType"] = "help";
+    ViewData["FirstNavLabel"] = "Home";
+    ViewData["SecondNavHref"] = "/faqs";
+    ViewData["SecondNavLabel"] = "FAQs";
+    var cspNonce = Context.Items["CspNonce"] as string ?? string.Empty;
+}
+@section Head {
+<style nonce="@cspNonce">
         :root {
             color-scheme: light;
             --blue: #0057a8;
@@ -305,7 +307,7 @@
             text-align: center;
         }
 
-        @media (max-width: 760px) {
+        @@media (max-width: 760px) {
             main {
                 grid-template-columns: 1fr;
                 gap: 30px;
@@ -316,7 +318,7 @@
             }
         }
 
-        @media (max-width: 560px) {
+        @@media (max-width: 560px) {
             .site-header {
                 min-height: 66px;
                 gap: 12px;
@@ -347,20 +349,8 @@
             }
         }
     </style>
-</head>
-<body>
-    <header class="site-header">
-        <a class="brand" href="index.html" aria-label="PALs home">
-            <img src="z/pals.png" alt="">
-            <span>PALs</span>
-        </a>
-        <nav class="header-links" aria-label="Main navigation">
-            <a href="index.html">Home</a>
-            <a href="faqs.html">FAQs</a>
-        </nav>
-    </header>
-
-    <main>
+}
+<main>
         <section class="intro" aria-labelledby="page-title">
             <p class="eyebrow">Help center</p>
             <h1 id="page-title">Contact support</h1>
@@ -406,7 +396,7 @@
                     </span>
                     <div>
                         <h3>Common questions</h3>
-                        <p>Browse account, matching, session, safety, privacy, and troubleshooting guidance in the <a href="faqs.html">PALs FAQs</a>.</p>
+                        <p>Browse account, matching, session, safety, privacy, and troubleshooting guidance in the <a href="/faqs">PALs FAQs</a>.</p>
                     </div>
                 </article>
             </div>
@@ -425,7 +415,7 @@
                 <div class="form-field">
                     <label for="supportEmail">School email</label>
                     <input id="supportEmail" name="email" type="email" autocomplete="email" placeholder="name@cubao.sti.edu.ph" aria-describedby="emailHint" required>
-                    <p class="form-hint" id="emailHint">Use your official @cubao.sti.edu.ph account.</p>
+                    <p class="form-hint" id="emailHint">Use your official @@cubao.sti.edu.ph account.</p>
                 </div>
                 <div class="form-field">
                     <label for="supportTopic">What do you need help with?</label>
@@ -452,9 +442,8 @@
         </section>
     </main>
 
-    <footer>PALs · Peer-Assisted Learning System</footer>
-
-    <script>
+@section Scripts {
+<script nonce="@cspNonce">
         const supportForm = document.getElementById("supportForm");
         const supportEmail = document.getElementById("supportEmail");
         const formStatus = document.getElementById("formStatus");
@@ -464,8 +453,8 @@
             event.preventDefault();
             const email = supportEmail.value.trim();
 
-            if (!supportEmail.validity.valid || !email.toLowerCase().endsWith("@cubao.sti.edu.ph")) {
-                supportEmail.setCustomValidity("Use a valid @cubao.sti.edu.ph school email.");
+            if (!supportEmail.validity.valid || !email.toLowerCase().endsWith("@@cubao.sti.edu.ph")) {
+                supportEmail.setCustomValidity("Use a valid @@cubao.sti.edu.ph school email.");
                 supportEmail.reportValidity();
                 return;
             }
@@ -481,5 +470,4 @@
             formStatus.textContent = "";
         });
     </script>
-</body>
-</html>
+}

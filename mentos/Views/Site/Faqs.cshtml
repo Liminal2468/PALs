@@ -1,26 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0057a8">
-    <meta name="description" content="Find answers to common questions about PALs, accounts, tutoring, privacy, and technical support.">
-    <title>FAQs | PALs</title>
-    <link rel="stylesheet" href="styles/faq.css">
-</head>
-<body>
-    <header class="site-header">
-        <a class="brand" href="index.html" aria-label="PALs home">
-            <img src="z/pals.png" alt="">
-            <span>PALs</span>
-        </a>
-        <nav class="header-links" aria-label="Main navigation">
-            <a href="index.html">Login</a>
-            <a href="contactsupport.html">Contact support</a>
-        </nav>
-    </header>
-
-    <main>
+@{
+    ViewData["Title"] = "FAQs | PALs";
+    ViewData["Description"] = "Find answers to common questions about PALs, accounts, tutoring, privacy, and technical support.";
+    ViewData["Stylesheet"] = "/styles/faq.css";
+    ViewData["PageType"] = "help";
+    ViewData["FirstNavLabel"] = "Login";
+    ViewData["SecondNavHref"] = "/contactsupport";
+    ViewData["SecondNavLabel"] = "Contact support";
+    ViewData["Scripts"] = new[] { "/scripts/faq.js" };
+}
+<main>
         <section class="intro" aria-labelledby="page-title">
             <p class="eyebrow">Help center</p>
             <h1 id="page-title">Frequently asked questions</h1>
@@ -110,12 +98,6 @@
                 <h2>Still need help?</h2>
                 <p>Reach out to the PALs support team for assistance.</p>
             </div>
-            <a class="contact-link" href="contactsupport.html">Contact support</a>
+            <a class="contact-link" href="/contactsupport">Contact support</a>
         </aside>
     </main>
-
-    <footer>PALs · Peer-Assisted Learning System</footer>
-
-    <script src="scripts/faq.js" defer></script>
-</body>
-</html>

@@ -87,16 +87,18 @@ Example student login:
 | Method | Path | Status and behavior |
 |---|---|---|
 | GET | /api/v1/me | Returns the authenticated account/profile |
-| PATCH | /api/v1/me | Updates display name, grade, and section; bio, role selections, and subject selections are not yet persisted by the active frontend |
-| GET | /api/v1/users | Implemented; restricted to admin and developer roles |
-| GET | /api/v1/pages | Implemented authenticated static page catalog; not a full CMS/page-management system |
+| PATCH | /api/v1/me | Updates display name, grade, section, bio, tutor/tutee selections, and subject preferences; profile creation requires grade and section |
+| GET | /api/v1/users | Implemented; restricted to admin and developer roles; returns safe account summaries and roles |
+| PATCH | /api/v1/users/{id} | Implemented; changes account status or tutor/tutee roles and records an account audit; privileged roles cannot be changed here |
+| GET | /api/v1/pages | Implemented; returns database-backed safe page metadata filtered by account role |
+| PATCH | /api/v1/pages/{id} | Implemented; administrator/developer page metadata update; file routes are immutable and allowlisted |
 | GET | /api/v1/tutors | Returns active tutors and subject summaries |
 | GET | /api/v1/tutees | Returns open learning requests/tutee entries |
 | GET | /api/v1/learning-requests | Lists the current user's learning requests |
 | POST | /api/v1/learning-requests | Creates a learning request |
 | GET | /api/v1/sessions | Lists sessions visible to the current user |
 | POST | /api/v1/sessions | Creates a one-to-one session record |
-| PATCH | /api/v1/sessions/{id} | Updates an owned session status |
+| PATCH | /api/v1/sessions/{id} | Updates an accessible session through validated status transitions and records a session audit |
 | GET | /api/v1/dashboard | Returns live account dashboard aggregates |
 
 ### Calendar schedule
@@ -118,19 +120,22 @@ DATETIME(3) values and requires the end not to precede the start.
 |---|---|---|
 | GET | /api/v1/resources | Lists visible resources and the current user's own resources |
 | POST | /api/v1/resources | Creates a resource in pending moderation state |
-| PATCH | /api/v1/resources/{id} | Updates an owned resource |
-| DELETE | /api/v1/resources/{id} | Deletes an owned resource |
+| PATCH | /api/v1/resources/{id} | Updates an owned resource, returns it to pending moderation, and records an audit |
+| DELETE | /api/v1/resources/{id} | Soft-removes an owned resource and records an audit |
+| PATCH | /api/v1/resources/{id}/moderation | Administrator/developer moderation update; records an approval, flag, or removal audit |
 | GET | /api/v1/feedback | Lists visible feedback posts and vote counts |
 | POST | /api/v1/feedback | Creates a feedback post |
 | POST | /api/v1/feedback/{id}/votes | Records an idempotent vote |
 | POST | /api/v1/support | Creates a support ticket for the current account |
-| POST | /api/v1/analytics/events | Records an event only when active research consent exists |
+| POST | /api/v1/analytics/events | Records an allowlisted event only when active research consent exists; payload size and duration are bounded |
 | POST | /api/v1/analytics/consent | Records or restores analytics consent |
 | GET | /api/v1/analytics/summary | Returns the current user's consent-scoped aggregate summary |
 
-The active frontend connects listing, creation, feedback voting, support, and
-analytics consent. Resource update/delete controls, session status controls,
-and analytics event emission are not fully wired into the current UI.
+The active frontend connects live account/profile hydration, dashboard
+statistics, tutor/tutee lists, learning requests, sessions, resource listing
+and creation, feedback voting, support, analytics consent, and consent-aware
+page-view event emission. Resource update/delete controls and a dedicated
+administrator management screen are not yet present in the preserved UI.
 
 ### Deferred authentication and matching routes
 
@@ -160,12 +165,16 @@ X-Pals-Host-Key; user-scoped routes also require X-Pals-Session.
 | GET/PATCH | /internal/v1/me | Reads or updates the current account/profile |
 | GET | /internal/v1/dashboard | Returns account dashboard aggregates |
 | GET | /internal/v1/users | Lists accounts for admin/developer users |
+| PATCH | /internal/v1/users/{id} | Changes account status or tutor/tutee roles and records an account audit |
+| GET | /internal/v1/pages | Lists safe database-backed page metadata; non-privileged users receive enabled pages allowed for their role |
+| PATCH | /internal/v1/pages/{id} | Changes allowlisted page metadata for admin/developer users and records an audit |
 | GET | /internal/v1/tutors | Lists active tutors |
 | GET | /internal/v1/tutees | Lists open tutee requests |
 | GET/POST | /internal/v1/learning-requests | Reads or creates learning requests |
 | GET/POST/PATCH | /internal/v1/sessions | Reads, creates, or updates sessions |
 | GET/POST/PATCH/DELETE | /internal/v1/schedule | Reads, creates, updates, or deactivates calendar events |
-| GET/POST/PATCH/DELETE | /internal/v1/resources | Resource listing and ownership-checked mutations |
+| GET/POST/PATCH/DELETE | /internal/v1/resources | Resource listing and ownership-checked mutations with audit records |
+| PATCH | /internal/v1/resources/{id}/moderation | Admin/developer moderation mutation with audit record |
 | GET/POST | /internal/v1/feedback | Feedback listing and creation |
 | POST | /internal/v1/feedback/{id}/votes | Records a feedback vote |
 | POST | /internal/v1/support | Creates a support ticket |
@@ -219,11 +228,16 @@ Active schema files are under database/schema/:
 | schema_v6_frontend_features.sql | Resources, audits, feedback, votes, and support tickets |
 | schema_v7_sessions_schedule.sql | Persistent HOST sessions and calendar events |
 | schema_v8_mfa.sql | Short-lived hashed TOTP replay protection |
+| schema_v9_profile_management.sql | Profile bio/section/preferences, account and session audits, and safe page metadata |
 
 These scripts are not applied automatically. The runtime dbpals account should
 retain application CRUD privileges; use a separate migration administrator to
 apply schema changes. Identity login requires v5 and a seeded Identity account;
-the persisted HOST session and schedule routes require v7.
+the persisted HOST session and schedule routes require v7; the complete
+profile, management, audit, and page metadata routes require v9.
+
+The v9 migration stores page metadata only. It does not permit arbitrary file
+paths, HTML uploads, source-file reads, or public access to server internals.
 
 Developer/admin accounts are seeded interactively from server/:
 

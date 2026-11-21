@@ -27,6 +27,8 @@ The frontend feature migration is
 [`database/schema/schema_v6_frontend_features.sql`](database/schema/schema_v6_frontend_features.sql).
 The TOTP replay-protection script is
 [`database/schema/schema_v8_mfa.sql`](database/schema/schema_v8_mfa.sql).
+The profile, account-audit, session-audit, and page-metadata migration is
+[`database/schema/schema_v9_profile_management.sql`](database/schema/schema_v9_profile_management.sql).
 These scripts are not applied automatically.
 
 ## Run locally
@@ -77,14 +79,25 @@ through v4 PALs schemas preserve the general account and feature structures;
 `schema_v6_frontend_features.sql` adds resources, feedback, and support tables;
 `schema_v7_sessions_schedule.sql` adds persistent HOST sessions and calendar
 events; `schema_v8_mfa.sql` adds short-lived hashed TOTP replay protection.
-Neither script is applied automatically.
+`schema_v9_profile_management.sql` adds complete profile preferences, account
+and session audits, and safe page metadata. These scripts are not applied
+automatically.
+
+After the earlier schemas are applied, run the v9 migration against the
+selected database with a migration administrator:
+
+```bash
+sudo mariadb palsysdb < database/schema/schema_v9_profile_management.sql
+```
 Earlier Node-line copies remain under
 [`bindoc/build/v2-nodeline/builddocs/schemas/`](../bindoc/build/v2-nodeline/builddocs/schemas/)
 as migration references.
 
-Do not expose MariaDB/MySQL directly to HOST clients. The future database
-layer must continue to enforce table allowlisting, parameterized queries,
-ownership checks, and route-level authorization.
+Do not expose MariaDB/MySQL directly to HOST clients. The database layer
+enforces parameterized queries, ownership checks, route-level authorization,
+allowlisted profile roles, audited management mutations, and bounded analytics
+events. Page management stores metadata only; it cannot read or write arbitrary
+files under the application directories.
 
 ## TOTP developer MFA
 

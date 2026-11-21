@@ -36,6 +36,10 @@ public sealed class HostDbservClient
         {
             return new DbservResponse(HttpStatusCode.BadGateway, "{\"error\":{\"code\":\"dbserv_unreachable\",\"message\":\"The database service could not be reached.\"}}", "application/json");
         }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new DbservResponse(HttpStatusCode.GatewayTimeout, "{\"error\":{\"code\":\"dbserv_timeout\",\"message\":\"The database service did not respond in time.\"}}", "application/json");
+        }
     }
 
     public static IActionResult ToActionResult(ControllerBase controller, DbservResponse response) =>

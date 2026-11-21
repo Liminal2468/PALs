@@ -5,8 +5,11 @@ Mentos is the PALs HOST application, now initialized as an ASP.NET Core .NET
 
 ## Structure
 
-- [`public/`](public/) contains the preserved PALs frontend.
-- [`Program.cs`](Program.cs) configures the HOST listener and static files.
+- [`public/`](public/) contains static assets and login components.
+- [`Views/Site/`](Views/Site/) and [`Views/Pals/`](Views/Pals/) contain the
+  Razor-rendered site pages and allowlisted PALs partials.
+- [`Program.cs`](Program.cs) configures MVC, session authentication, rate
+  limiting, and static files.
 - [`Controllers/`](Controllers/) exposes the `/api/v1` frontend façade. Business
   data is requested from DBSERV over the private `DBSERV_URL` connection and
   authenticated with `HOST_SHARED_KEY`.
@@ -28,8 +31,11 @@ The default listener is `http://127.0.0.1:8000`. Override it with
 `HOST_SHARED_KEY` are also read from that file. Blank or omitted values are
 ignored, and existing process environment values take precedence.
 
-The browser interface is served from `public/` by ASP.NET Core. The API route
-contract remains under `/api/v1`:
+The browser routes are `/`, `/faqs`, `/contactsupport`, and `/pals`.
+`/pals` and `/pals/partial/{name}` require a validated DBSERV session. The
+partial route accepts only the fixed view names defined in `SiteController`.
+
+The API route contract remains under `/api/v1`:
 
 - `/api/v1/health`
 - `/api/v1/session`
@@ -48,6 +54,17 @@ contract remains under `/api/v1`:
 Tutor recommendations remain deliberately unavailable until `/connect` and its
 matching algorithm are approved. The longer recommendation paths remain
 compatibility aliases for the canonical `/rec-peer-tutor` path.
+
+## Development login prototype
+
+The student login prototype is available only in a Debug build running with
+`ASPNETCORE_ENVIRONMENT=Development`. It accepts the fixed account
+`student.123456@cubao.sti.edu.ph`; the six-digit verification code is printed
+to the server console. Code delivery is not connected to AWS SES yet. Release
+builds and non-Development environments return an explicit unavailable
+response rather than issuing a session. The attempt ID stays in an HttpOnly
+cookie, and successful verification creates the DBSERV session and records
+terms acceptance.
 
 ## Recovery
 

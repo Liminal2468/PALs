@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+readonly KEY_DIR="$(pwd -P)/.keygen"
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  ./gen create key [-N LENGTH] [-p|--print]
+
+Options:
+  -N LENGTH     token_urlsafe byte length; default: 48
+  -p, --print   print the key instead of creating a .pem file
+USAGE
+}
+
+fail() {
+    printf 'gen: %s\n' "$1" >&2
+    exit 2
+}
+
+if [[ "${1:-}" != "create" || "${2:-}" != "key" ]]; then
+    usage >&2
+    exit 2
+fi
+shift 2
+
+length=48
+print_key=false
+
+while (($# > 0)); do
+    case "$1" in
+        -p|--print)
+            print_key=true
+            shift
+            ;;
+        -N)
+            (($# >= 2)) || fail "-N requires a positive integer length"
+            length="$2"
+            shift 2
+            ;;
+        -N=*)
+            length="${1#-N=}"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            fail "unknown argument: $1"
+            ;;
+    esac
+done
+
+[[ "$length" =~ ^[1-9][0-9]*$ ]] || fail "key length must be a positive integer"
+command -v python3 >/dev/null 2>&1 || fail "python3 is required"
+command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
+
+key="$(python3 - "$length" <<'PY'
+import secrets
+import sys
+
+length = int(sys.argv[1])
+print(secrets.token_urlsafe(length))
+PY
+)"
+
+if [[ "$print_key" == true ]]; then
+    read -r -p "'-p' Flag will print key on screen, are you sure of this operation? [\"y\", \"n\"] " confirmation
+    if [[ "$confirmation" != "y" ]]; then
+        printf 'Key was not printed.\n' >&2
+        exit 1
+    fi
+    printf '%s\n' "$key"
+    exit 0
+fi
+
+umask 077
+mkdir -p -m 700 "$KEY_DIR"
+chmod 700 "$KEY_DIR"
+timestamp="$(date +%s)"
+key_sha="$(printf '%s' "$key" | sha256sum | cut -c1-5)"
+output="${KEY_DIR}/${timestamp}-${key_sha}.pem"
+
+if [[ -e "$output" ]]; then
+    fail "refusing to overwrite existing key file: $output"
+fi
+
+(
+    set -C
+    printf '%s\n' "$key" > "$output"
+)
+chmod 600 "$output"
+printf 'Generated key file: %s\n' "$output"

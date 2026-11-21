@@ -114,7 +114,7 @@ As of the moment `Mentos` currently applies ISO/IEC 25010:2023 quality model par
 >  product-quality characteristics for evaluation, not a certification pass/fail test. [Official ISO reference](https://www.iso.org/standard/78176.html)
 
 |Characteristic|Score|
-|---|--:|
+|---|---|
 |Functional suitability|5.0|
 |Performance efficiency|4.5|
 |Compatibility|6.0|

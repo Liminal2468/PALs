@@ -1,0 +1,77 @@
+@{
+    var title = ViewData["Title"] as string ?? "PALs";
+    var description = ViewData["Description"] as string ?? "Peer-Assisted Learning System for STI College Cubao.";
+    var stylesheet = ViewData["Stylesheet"] as string;
+    var pageType = ViewData["PageType"] as string ?? string.Empty;
+    var scripts = ViewData["Scripts"] as IEnumerable<string> ?? [];
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0057a8">
+    <meta name="description" content="@description">
+    <title>@title</title>
+    @if (!string.IsNullOrWhiteSpace(stylesheet))
+    {
+        <link rel="stylesheet" href="@stylesheet">
+    }
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    @if (pageType == "landing")
+    {
+        <header class="page-shell topbar">
+            <div class="brand">
+                <img src="/z/pals.png" alt="PALs">
+                <span class="brand-name">Peer-Assisted Learning System</span>
+            </div>
+            <div class="header-actions">
+                <nav class="utility-links" aria-label="Support">
+                    <a class="utility-link" href="/contactsupport">Contact support</a>
+                    <a class="utility-link" href="/faqs">FAQs</a>
+                </nav>
+                <button class="login-link" id="loginTrigger" type="button" aria-haspopup="dialog" aria-controls="loginDialog">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <path d="m10 17 5-5-5-5"/>
+                        <path d="M15 12H3"/>
+                    </svg>
+                    Log in
+                </button>
+            </div>
+        </header>
+    }
+    else if (pageType == "help")
+    {
+        <header class="site-header">
+            <a class="brand" href="/" aria-label="PALs home">
+                <img src="/z/pals.png" alt="">
+                <span>PALs</span>
+            </a>
+            <nav class="header-links" aria-label="Main navigation">
+                <a href="/">@(ViewData["FirstNavLabel"] as string ?? "Home")</a>
+                <a href="@(ViewData["SecondNavHref"] as string ?? "/contactsupport")">@(ViewData["SecondNavLabel"] as string ?? "Contact support")</a>
+            </nav>
+        </header>
+    }
+
+    @RenderBody()
+
+    @if (pageType == "landing")
+    {
+        <footer class="page-shell">PALs · Peer-Assisted Learning System</footer>
+    }
+    else if (pageType == "help")
+    {
+        <footer>PALs · Peer-Assisted Learning System</footer>
+    }
+
+    @foreach (var script in scripts)
+    {
+        <script src="@script" defer></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

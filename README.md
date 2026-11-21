@@ -88,6 +88,22 @@ Keep `.env` files, `config.yaml` files, shared keys, database passwords, and Dat
 > [!NOTE]
 > The Tailscale is OPTIONAL as any other TLS can also be used as a means of Secure Data transport without the `HOST` interacting with the database directly.
 
+**Notice**
+
+Upon version 2.0 to 3.0 the development transistioned to a new backend. 
+
+### **Backend Stack**
+
+| Category             | Technology              |
+| -------------------- | ----------------------- |
+| Framework            | ASP.NET Core MVC (.NET) |
+| Programming Language | C#                      |
+| ORM                  | Entity Framework Core   |
+| Database             | MySQL, or other database|
+| Authentication       | ASP.NET Core Identity   |
+
+With the current implementation here are still missing features, but those parts are being taken cared and will manage for a while. 
+The email verification implementation is still in development and will be integrated once it is migrated ti C# for now it runs on python.
 
 
 ---
@@ -95,3 +111,4 @@ Keep `.env` files, `config.yaml` files, shared keys, database passwords, and Dat
 
 [![Liminal2468](https://img.shields.io/badge/GitHub-Liminal2468-181717?style=flat-square&logo=github)](https://github.com/Liminal2468)
 [![KeiNerokami](https://img.shields.io/badge/GitHub-KeiNerokami-181717?style=flat-square&logo=github)](https://github.com/KeiNerokami)
+

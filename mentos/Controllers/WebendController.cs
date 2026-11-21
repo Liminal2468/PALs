@@ -1,36 +1,49 @@
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Mentos.Host.Webend;
 
 namespace Mentos.Host.Controllers;
 
-[ApiController]
-[Route("api/v1")]
-public sealed class WebendController : ControllerBase
+[Authorize]
+public abstract class WebendController : ControllerBase
 {
-    private const string SessionCookie = "pals_host_session";
+    private const string SessionCookie = PalsSessionAuthenticationHandler.SessionCookie;
+    private const string PendingCookie = "pals_host_pending";
     private const string SchoolDomain = "@cubao.sti.edu.ph";
-    private readonly HostDbservClient dbserv;
+    protected readonly HostDbservClient dbserv;
+    private readonly IWebHostEnvironment environment;
 
-    public WebendController(HostDbservClient dbserv) => this.dbserv = dbserv;
+    protected WebendController(HostDbservClient dbserv, IWebHostEnvironment environment)
+    {
+        this.dbserv = dbserv;
+        this.environment = environment;
+    }
 
+    [AllowAnonymous]
     [HttpGet("auth/options")]
     public IActionResult AuthenticationOptions() => Ok(new { providers = new[] { "local-school-account" }, schoolDomain = SchoolDomain, termsRequired = true });
 
+    [AllowAnonymous]
+    [EnableRateLimiting("authentication")]
     [HttpPost("auth/login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
+        Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
         var email = request.Email?.Trim().ToLowerInvariant();
         if (!request.TermsAccepted) return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
         if (!IsSchoolEmail(email)) return Unauthorized(Error("account_not_recognized", "Use a recognized STI College Cubao school account."));
         var response = await dbserv.SendAsync(HttpMethod.Post, "/internal/v1/auth/login", email!, new { email, termsAccepted = true }, cancellationToken);
-        return SetSessionFromDbserv(response);
+        return SetPendingFromDbserv(response);
     }
 
     [HttpGet("session")]
     public Task<IActionResult> Session(CancellationToken cancellationToken) => ProxyAuthSession(cancellationToken);
 
+    [AllowAnonymous]
+    [EnableRateLimiting("authentication")]
     [HttpPost("auth/admin/login")]
     public async Task<IActionResult> AdminLogin([FromBody] AdminLoginRequest request, CancellationToken cancellationToken)
     {
@@ -44,7 +57,8 @@ public sealed class WebendController : ControllerBase
     {
         if (Request.Cookies.TryGetValue(SessionCookie, out var token))
             await dbserv.SendAsync(HttpMethod.Delete, "/internal/v1/auth/session", "", null, cancellationToken, token);
-        Response.Cookies.Delete(SessionCookie);
+        Response.Cookies.Delete(SessionCookie, HostCookieOptions.Create(Request, environment));
+        Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
         return Ok(new { authenticated = false });
     }
 
@@ -58,9 +72,10 @@ public sealed class WebendController : ControllerBase
     public Task<IActionResult> Users(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/users", null, cancellationToken);
 
     [HttpGet("pages")]
-    public IActionResult Pages() => RequireSession(out _)
-        ? Ok(new { items = new[] { new { path = "pages/home.html", title = "Home" }, new { path = "pages/tutors.html", title = "Tutors" }, new { path = "pages/tutees.html", title = "Tutees" }, new { path = "pages/sessions.html", title = "Sessions" }, new { path = "pages/resources.html", title = "Resources" }, new { path = "pages/analytics.html", title = "Analytics" }, new { path = "pages/user.html", title = "Account" } } })
-        : Unauthorized(Error("authentication_required", "Sign in before requesting page management data."));
+    public Task<IActionResult> Pages(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/pages", null, cancellationToken);
+
+    [HttpPatch("pages/{id:long}")]
+    public Task<IActionResult> UpdatePage(long id, [FromBody] object body, CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Patch, $"/internal/v1/pages/{id}", body, cancellationToken);
 
     [HttpGet("tutors")]
     public Task<IActionResult> Tutors(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/tutors", null, cancellationToken);
@@ -114,6 +129,9 @@ public sealed class WebendController : ControllerBase
     [HttpDelete("resources/{id:long}")]
     public Task<IActionResult> DeleteResource(long id, CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Delete, $"/internal/v1/resources/{id}", null, cancellationToken);
 
+    [HttpPatch("resources/{id:long}/moderation")]
+    public Task<IActionResult> ModerateResource(long id, [FromBody] object body, CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Patch, $"/internal/v1/resources/{id}/moderation", body, cancellationToken);
+
     [HttpGet("feedback")]
     public Task<IActionResult> Feedback(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/feedback", null, cancellationToken);
 
@@ -157,19 +175,64 @@ public sealed class WebendController : ControllerBase
         return DbservResponse(response);
     }
 
-    private IActionResult SetSessionFromDbserv(DbservResponse response)
+    protected IActionResult SetSessionFromDbserv(DbservResponse response, bool clearPending = false)
     {
         if ((int)response.StatusCode >= 400) return DbservResponse(response);
-        using var document = JsonDocument.Parse(response.Content);
-        if (!document.RootElement.TryGetProperty("sessionKey", out var sessionKey) || sessionKey.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(sessionKey.GetString()))
+        try
+        {
+            using var document = JsonDocument.Parse(response.Content);
+            if (!document.RootElement.TryGetProperty("sessionKey", out var sessionKey)
+                || sessionKey.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(sessionKey.GetString())
+                || !document.RootElement.TryGetProperty("account", out var account))
+                return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid session."));
+
+            Response.Cookies.Append(SessionCookie, sessionKey.GetString()!, HostCookieOptions.Create(Request, environment, TimeSpan.FromHours(8)));
+            if (clearPending)
+                Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
+            return Ok(new { authenticated = true, account = account.Clone() });
+        }
+        catch (JsonException)
+        {
             return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid session."));
-        Response.Cookies.Append(SessionCookie, sessionKey.GetString()!, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax, Secure = Request.IsHttps, IsEssential = true, MaxAge = TimeSpan.FromHours(8), Path = "/" });
-        return Content(response.Content, response.ContentType);
+        }
     }
 
-    private static IActionResult DbservResponse(DbservResponse response) => new ContentResult { StatusCode = (int)response.StatusCode, ContentType = response.ContentType, Content = response.Content };
+    private IActionResult SetPendingFromDbserv(DbservResponse response)
+    {
+        if ((int)response.StatusCode >= 400) return DbservResponse(response);
+        try
+        {
+            using var document = JsonDocument.Parse(response.Content);
+            if (!document.RootElement.TryGetProperty("attemptId", out var attemptId)
+                || attemptId.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(attemptId.GetString())
+                || !document.RootElement.TryGetProperty("expiresInSeconds", out var expires)
+                || !expires.TryGetInt32(out var expiresInSeconds)
+                || expiresInSeconds is <= 0 or > 600)
+                return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid verification attempt."));
+
+            Response.Cookies.Append(
+                PendingCookie,
+                attemptId.GetString()!,
+                HostCookieOptions.Create(Request, environment, TimeSpan.FromSeconds(expiresInSeconds)));
+            return Ok(new { verificationRequired = true, expiresInSeconds });
+        }
+        catch (JsonException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid verification attempt."));
+        }
+    }
+
+    protected string? PendingAttemptId => Request.Cookies[PendingCookie];
+    protected void ClearPendingAttempt() =>
+        Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
+
+    protected bool IsPendingAttemptExpired(DbservResponse response) =>
+        (int)response.StatusCode == StatusCodes.Status410Gone;
+
+    protected static IActionResult DbservResponse(DbservResponse response) => new ContentResult { StatusCode = (int)response.StatusCode, ContentType = response.ContentType, Content = response.Content };
     private bool TrySessionKey(out string sessionKey) { sessionKey = Request.Cookies[SessionCookie] ?? ""; return sessionKey.Length > 0; }
-    private bool RequireSession(out string? session) { session = Request.Cookies[SessionCookie]; return !string.IsNullOrWhiteSpace(session); }
     private static bool IsSchoolEmail(string? email) => email is not null && email.EndsWith(SchoolDomain, StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(email[..^SchoolDomain.Length], @"^[a-z]+\.[0-9]{6,}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static object Error(string code, string message) => new { error = new { code, message } };
     public sealed record LoginRequest(string? Email, bool TermsAccepted);
