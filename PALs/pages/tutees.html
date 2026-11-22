@@ -1,0 +1,144 @@
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Find a tutee</div>
+        <div class="topbar-sub">Connect with students looking for peer learning support</div>
+    </div>
+    <div class="topbar-actions"><button class="btn-ghost" type="button" data-navigate="pages/tutors.html">Find a tutor</button><button class="btn-primary" type="button" data-navigate="pages/sessions.html">My sessions</button></div>
+</div>
+
+<div class="sub-content">
+    <section class="tutor-intro panel">
+        <div>
+            <p class="page-eyebrow">Share what you know</p>
+            <h1>Find a student to support</h1>
+            <p class="page-description">Browse sample student requests by subject and availability. Offer peer support and agree on a session together. These profiles and requests are demo content.</p>
+        </div>
+        <div class="tutor-intro-stat"><strong data-tutee-count>5</strong><span>students seeking help</span></div>
+    </section>
+
+    <section class="tutor-search-panel panel" aria-label="Find students seeking help">
+        <div class="tutor-search-grid">
+            <label class="tutor-search-field">Search students or topics
+                <input type="search" data-tutee-search placeholder="Try a name, subject, or learning goal" autocomplete="off">
+            </label>
+            <label class="tutor-search-field">Subject
+                <select data-tutee-subject>
+                    <option value="all">All subjects</option>
+                    <option value="programming">Programming</option>
+                    <option value="math">Mathematics</option>
+                    <option value="science">Science</option>
+                    <option value="research">Research</option>
+                    <option value="self-improvement">Self improvement</option>
+                    <option value="humanities">Humanities</option>
+                </select>
+            </label>
+            <label class="tutor-search-field">Availability
+                <select data-tutee-availability>
+                    <option value="all">Any availability</option>
+                    <option value="now">Available now</option>
+                    <option value="today">Available today</option>
+                    <option value="scheduled">Schedule ahead</option>
+                </select>
+            </label>
+            <label class="tutor-search-field">Sort by
+                <select data-tutee-sort>
+                    <option value="recent">Recently active</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="subject">Subject</option>
+                </select>
+            </label>
+        </div>
+        <div class="tutor-result-line"><span data-tutee-results role="status" aria-live="polite">Showing 5 students seeking help</span><button class="text-button" type="button" data-tutee-reset>Clear filters</button></div>
+    </section>
+
+    <section class="tutor-results" aria-label="Students seeking peer support">
+        <div class="tutor-grid tutor-directory" data-tutee-list>
+            <article class="tutor-card tutor-directory-card tutee-directory-card featured" data-tutee-card data-subjects="programming,math" data-availability="today" data-name="Kai Mendoza" data-recent="1">
+                <div class="t-av blue">KM</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Kai Mendoza</h2><span class="tag blue">Grade 12 · ICT</span></div>
+                    <div class="t-meta"><span><span class="avail-dot"></span>Available today</span><span>Looking for a study partner</span></div>
+                    <p class="tutor-bio">Would like help reviewing programming logic, debugging practice exercises, and getting started with app development.</p>
+                    <div class="t-tags"><span class="tag blue">Computer/Web Programming 4</span><span class="tag blue">Mobile App Programming 2</span><span class="tag teal">Mathematics</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge high">Programming</span><button class="req-btn" type="button" data-request-tutee="Kai Mendoza">Offer peer support</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card tutee-directory-card" data-tutee-card data-subjects="science,math" data-availability="now" data-name="Mia Reyes" data-recent="2">
+                <div class="t-av teal">MR</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Mia Reyes</h2><span class="tag teal">Grade 11 · STEM</span></div>
+                    <div class="t-meta"><span><span class="avail-dot"></span>Available now</span><span>Prefers practice problems</span></div>
+                    <p class="tutor-bio">Seeking a friendly study partner to go through chemistry concepts, equations, and worked examples at a steady pace.</p>
+                    <div class="t-tags"><span class="tag teal">Chemistry</span><span class="tag teal">General Mathematics</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">Science</span><button class="req-btn" type="button" data-request-tutee="Mia Reyes">Offer peer support</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card tutee-directory-card" data-tutee-card data-subjects="research,humanities" data-availability="scheduled" data-name="Lance Cruz" data-recent="3">
+                <div class="t-av purple">LC</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Lance Cruz</h2><span class="tag purple">Grade 12 · HUMSS</span></div>
+                    <div class="t-meta"><span>Schedule ahead</span><span>Usually free after class</span></div>
+                    <p class="tutor-bio">Looking for guidance with research question development, organizing sources, and outlining a clear paper structure.</p>
+                    <div class="t-tags"><span class="tag purple">Practical Research 1</span><span class="tag purple">Oral Communication</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">Research</span><button class="req-btn" type="button" data-request-tutee="Lance Cruz">Offer peer support</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card tutee-directory-card" data-tutee-card data-subjects="math,science" data-availability="today" data-name="Ella Navarro" data-recent="4">
+                <div class="t-av blue">EN</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Ella Navarro</h2><span class="tag blue">Grade 11 · STEM</span></div>
+                    <div class="t-meta"><span><span class="avail-dot"></span>Available today</span><span>Wants step-by-step explanations</span></div>
+                    <p class="tutor-bio">Hoping to strengthen calculus and physics fundamentals before moving on to more challenging problems.</p>
+                    <div class="t-tags"><span class="tag teal">Calculus</span><span class="tag teal">Physics</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">Mathematics</span><button class="req-btn" type="button" data-request-tutee="Ella Navarro">Offer peer support</button></div>
+            </article>
+
+            <article class="tutor-card tutor-directory-card tutee-directory-card" data-tutee-card data-subjects="self-improvement,humanities" data-availability="now" data-name="Noah Villanueva" data-recent="5">
+                <div class="t-av teal">NV</div>
+                <div class="tutor-profile-main">
+                    <div class="tutor-card-title"><h2 class="t-name">Noah Villanueva</h2><span class="tag teal">Grade 12 · ABM</span></div>
+                    <div class="t-meta"><span><span class="avail-dot"></span>Available now</span><span>Interested in a small study group</span></div>
+                    <p class="tutor-bio">Would like to build a consistent study routine and review communication and personal development topics with classmates.</p>
+                    <div class="t-tags"><span class="tag teal">Self Improvement</span><span class="tag purple">Oral Communication</span></div>
+                </div>
+                <div class="tutor-card-actions"><span class="mbadge med">Study skills</span><button class="req-btn" type="button" data-request-tutee="Noah Villanueva">Offer peer support</button></div>
+            </article>
+        </div>
+        <p class="empty-state" data-tutee-empty hidden>No students match those filters. Try another subject or clear your search.</p>
+    </section>
+
+    <p class="demo-note tutor-demo-note">Student profiles and learning requests are sample content only. Offering support saves a local demo request; it does not contact the student.</p>
+</div>
+
+<dialog class="app-dialog" data-request-dialog data-request-role="tutee" aria-labelledby="requestDialogTitle">
+    <form class="app-form" data-request-form data-request-role="tutee">
+        <div class="dialog-heading">
+            <div><h2 id="requestDialogTitle">Offer peer support</h2><p data-request-tutor-label></p></div>
+            <button class="icon-button" type="button" data-close-dialog aria-label="Close">&times;</button>
+        </div>
+        <input type="hidden" name="tutorId" data-request-tutor-id>
+        <label>Subject
+            <select name="subject" required>
+                <option value="">Choose a subject</option>
+                <option>Computer/Web Programming 4</option>
+                <option>Mobile App Programming 2</option>
+                <option>General Mathematics</option>
+                <option>Statistics and Probability</option>
+                <option>Physics</option>
+                <option>Chemistry</option>
+                <option>Practical Research 1</option>
+                <option>Oral Communication</option>
+                <option>Self Improvement</option>
+                <option>Other</option>
+            </select>
+        </label>
+        <label>Suggested date and time<input name="preferredTime" type="datetime-local" required></label>
+        <label>Message to the student <span class="field-optional">(optional)</span><textarea name="note" rows="3" maxlength="500" placeholder="Briefly introduce how you could help."></textarea></label>
+        <p class="form-status" data-request-status role="status" aria-live="polite"></p>
+        <div class="form-actions"><button class="btn-ghost" type="button" data-close-dialog>Cancel</button><button class="btn-primary" type="submit">Send offer</button></div>
+    </form>
+</dialog>
