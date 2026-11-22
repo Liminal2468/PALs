@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,23 +13,26 @@ public enum PendingLoginVerificationStatus
     NotFound,
 }
 
-public sealed record PendingLoginStart(string AttemptId, string Code, int ExpiresInSeconds);
+public sealed record PendingLoginStart(
+    string AttemptId,
+    string Email,
+    string Code,
+    int ExpiresInSeconds,
+    int CodeLength);
 
 public sealed record PendingLoginVerification(
     PendingLoginVerificationStatus Status,
     string? Email = null,
     bool TermsAccepted = false);
 
-public sealed class PendingLoginStore
+public sealed class PendingLoginStore(TotpConfig config)
 {
-    private static readonly TimeSpan AttemptLifetime = TimeSpan.FromMinutes(5);
-    private const int MaximumAttempts = 5;
     private const int MaximumPendingAttempts = 10_000;
     private readonly ConcurrentDictionary<string, PendingAttempt> attempts = new(StringComparer.Ordinal);
 
     public PendingLoginStart? Create(string email, bool termsAccepted)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d;
         foreach (var entry in attempts)
         {
             if (entry.Value.ExpiresAt <= now)
@@ -39,18 +41,46 @@ public sealed class PendingLoginStore
         if (attempts.Count >= MaximumPendingAttempts)
             return null;
 
-        var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
-        var attemptId = Convert.ToBase64String(RandomNumberGenerator.GetBytes(24))
+        var attemptId = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16))
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
-        var codeHash = SHA256.HashData(Encoding.ASCII.GetBytes(code));
-        attempts[attemptId] = new PendingAttempt(
+        var code = Totp.Generate(
+            Totp.DeriveUserSecret(config.SharedSecret, email),
+            config.CodeLength,
+            config.Step,
+            now,
+            Encoding.ASCII.GetBytes(attemptId));
+        var currentStep = (long)Math.Floor(now / config.Step);
+        var codeExpiresAt = (currentStep + config.AtomicAllowedWindow + 1) * config.Step;
+        var expiresAt = Math.Min(now + config.PendingTtl, codeExpiresAt);
+        var expiresInSeconds = Math.Max(1, (int)Math.Ceiling(expiresAt - now));
+        var pending = new PendingAttempt(
             email,
-            codeHash,
-            now.Add(AttemptLifetime),
+            expiresAt,
             termsAccepted);
-        return new PendingLoginStart(attemptId, code, (int)AttemptLifetime.TotalSeconds);
+        attempts[attemptId] = pending;
+        return new PendingLoginStart(attemptId, email, code, expiresInSeconds, config.CodeLength);
+    }
+
+    public PendingLoginStart? Resend(string attemptId)
+    {
+        if (!attempts.TryGetValue(attemptId, out var attempt))
+            return null;
+
+        lock (attempt)
+        {
+            if (attempt.Used || !attempts.ContainsKey(attemptId))
+                return null;
+
+            if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d >= attempt.ExpiresAt)
+            {
+                attempts.TryRemove(attemptId, out _);
+                return null;
+            }
+
+            return Create(attempt.Email, attempt.TermsAccepted);
+        }
     }
 
     public PendingLoginVerification Verify(string attemptId, string code)
@@ -63,23 +93,32 @@ public sealed class PendingLoginStore
             if (attempt.Used || !attempts.ContainsKey(attemptId))
                 return new PendingLoginVerification(PendingLoginVerificationStatus.NotFound);
 
-            if (DateTimeOffset.UtcNow >= attempt.ExpiresAt)
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d;
+            if (now >= attempt.ExpiresAt)
             {
                 attempts.TryRemove(attemptId, out _);
                 return new PendingLoginVerification(PendingLoginVerificationStatus.Expired);
             }
 
-            if (attempt.FailedAttempts >= MaximumAttempts)
+            if (attempt.Attempts >= config.MaxAttempts)
             {
                 attempts.TryRemove(attemptId, out _);
                 return new PendingLoginVerification(PendingLoginVerificationStatus.AttemptsExceeded);
             }
 
-            var candidateHash = SHA256.HashData(Encoding.ASCII.GetBytes(code));
-            if (!CryptographicOperations.FixedTimeEquals(attempt.CodeHash, candidateHash))
+            attempt.Attempts++;
+            var (ok, matchedStep) = Atomic.Verify(
+                code,
+                Totp.DeriveUserSecret(config.SharedSecret, attempt.Email),
+                config.CodeLength,
+                config.Step,
+                config.AtomicAllowedWindow,
+                Encoding.ASCII.GetBytes(attemptId),
+                attempt.LastUsedStep,
+                now);
+            if (!ok)
             {
-                attempt.FailedAttempts++;
-                if (attempt.FailedAttempts >= MaximumAttempts)
+                if (attempt.Attempts >= config.MaxAttempts)
                 {
                     attempts.TryRemove(attemptId, out _);
                     return new PendingLoginVerification(PendingLoginVerificationStatus.AttemptsExceeded);
@@ -88,6 +127,7 @@ public sealed class PendingLoginStore
                 return new PendingLoginVerification(PendingLoginVerificationStatus.InvalidCode);
             }
 
+            attempt.LastUsedStep = matchedStep;
             attempt.Used = true;
             attempts.TryRemove(attemptId, out _);
             return new PendingLoginVerification(
@@ -97,17 +137,25 @@ public sealed class PendingLoginStore
         }
     }
 
-    private sealed class PendingAttempt(
-        string email,
-        byte[] codeHash,
-        DateTimeOffset expiresAt,
-        bool termsAccepted)
+    public void Cancel(string attemptId)
+    {
+        if (attempts.TryGetValue(attemptId, out var attempt))
+        {
+            lock (attempt)
+            {
+                attempt.Used = true;
+                attempts.TryRemove(attemptId, out _);
+            }
+        }
+    }
+
+    private sealed class PendingAttempt(string email, double expiresAt, bool termsAccepted)
     {
         public string Email { get; } = email;
-        public byte[] CodeHash { get; } = codeHash;
-        public DateTimeOffset ExpiresAt { get; } = expiresAt;
+        public double ExpiresAt { get; } = expiresAt;
         public bool TermsAccepted { get; } = termsAccepted;
-        public int FailedAttempts { get; set; }
+        public int Attempts { get; set; }
+        public long? LastUsedStep { get; set; }
         public bool Used { get; set; }
     }
 }

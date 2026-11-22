@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Amazon.Runtime;
+using Amazon.SimpleEmailV2;
 using Microsoft.AspNetCore.Mvc;
 using Palsys.Server.Data;
 using Palsys.Server.Identity;
@@ -14,22 +16,30 @@ public sealed class DataController : ControllerBase
     private readonly PalsDataStore store;
     private readonly DeveloperIdentityStore identity;
     private readonly PendingLoginStore pendingLogins;
-    private readonly IWebHostEnvironment environment;
+    private readonly TotpConfig totpConfig;
+    private readonly VerificationEmailSender verificationEmailSender;
+    private readonly MatchingAlgorithmRegistry matchingAlgorithms;
+    private readonly ILogger<DataController> logger;
     private readonly string hostKey;
-    private const string DevelopmentLoginEmail = "student.123456@cubao.sti.edu.ph";
     private const string TermsVersion = "pals-terms-v1";
 
     public DataController(
         PalsDataStore store,
         DeveloperIdentityStore identity,
         PendingLoginStore pendingLogins,
-        IWebHostEnvironment environment,
-        IConfiguration configuration)
+        TotpConfig totpConfig,
+        VerificationEmailSender verificationEmailSender,
+        MatchingAlgorithmRegistry matchingAlgorithms,
+        IConfiguration configuration,
+        ILogger<DataController> logger)
     {
         this.store = store;
         this.identity = identity;
         this.pendingLogins = pendingLogins;
-        this.environment = environment;
+        this.totpConfig = totpConfig;
+        this.verificationEmailSender = verificationEmailSender;
+        this.matchingAlgorithms = matchingAlgorithms;
+        this.logger = logger;
         hostKey = configuration["HOST_SHARED_KEY"] ?? "";
     }
 
@@ -41,20 +51,26 @@ public sealed class DataController : ControllerBase
         if (!IsSchoolEmail(email)) return Unauthorized(Error("account_not_recognized", "The account format is not recognized."));
         var termsAccepted = body.TryGetProperty("termsAccepted", out var terms) && terms.ValueKind == JsonValueKind.True;
         if (!termsAccepted) return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
-#if DEBUG
-        if (!environment.IsDevelopment())
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_unavailable", "Email verification is not configured."));
-        if (!email!.Equals(DevelopmentLoginEmail, StringComparison.OrdinalIgnoreCase))
-            return Unauthorized(Error("account_not_recognized", "Use the fixed Development test account."));
 
-        var pending = pendingLogins.Create(email, termsAccepted);
+        var existingUser = await store.FindUserAsync(email!, cancellationToken);
+        if (existingUser is not null
+            && (existingUser.Role is "student" or "tutor" or "tutee")
+            && await identity.HasStudentPasswordAsync(existingUser.Id))
+            return Ok(new { passwordRequired = true });
+
+        return await SendVerificationCodeAsync(email!, termsAccepted, cancellationToken);
+    }
+
+    [HttpPost("auth/resend")]
+    public async Task<IActionResult> ResendVerification([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        if (!TrustedHost()) return Forbid();
+        var attemptId = String(body, "attemptId");
+        var pending = string.IsNullOrWhiteSpace(attemptId) ? null : pendingLogins.Resend(attemptId);
         if (pending is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_capacity_reached", "Sign-in is temporarily unavailable. Try again later."));
-        Console.WriteLine($"TODO: Replace this Development-only verification-code output with AWS SES. Code: {pending.Code}");
-        return Ok(new { attemptId = pending.AttemptId, expiresInSeconds = pending.ExpiresInSeconds });
-#else
-        return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_unavailable", "Email verification is not configured."));
-#endif
+            return StatusCode(StatusCodes.Status410Gone, Error("verification_attempt_expired", "Start sign-in again to request a new code."));
+
+        return await SendVerificationCodeAsync(pending, cancellationToken);
     }
 
     [HttpPost("auth/verify")]
@@ -63,8 +79,11 @@ public sealed class DataController : ControllerBase
         if (!TrustedHost()) return Forbid();
         var attemptId = String(body, "attemptId");
         var code = String(body, "code");
-        if (string.IsNullOrWhiteSpace(attemptId) || code is null || code.Length != 6 || !code.All(char.IsAsciiDigit))
-            return BadRequest(Error("invalid_verification_code", "Verification code must contain exactly six digits."));
+        if (string.IsNullOrWhiteSpace(attemptId)
+            || code is null
+            || code.Length != totpConfig.CodeLength
+            || !code.All(char.IsAsciiDigit))
+            return BadRequest(Error("invalid_verification_code", $"Verification code must contain exactly {totpConfig.CodeLength} digits."));
 
         var verification = pendingLogins.Verify(attemptId, code);
         if (verification.Status != PendingLoginVerificationStatus.Verified)
@@ -91,7 +110,111 @@ public sealed class DataController : ControllerBase
         var user = await store.FindUserAsync(verification.Email, cancellationToken);
         if (user is null) return Unauthorized(Error("account_not_recognized", "The account is not active."));
         var sessionKey = await store.CreateSessionAsync(user, cancellationToken);
-        return Ok(new { sessionKey, account = new { email = user.Email, role = user.Role, status = user.Status } });
+        var passwordSetupRequired = (user.Role is "student" or "tutor" or "tutee")
+            && !await identity.HasStudentPasswordAsync(user.Id);
+        return Ok(new
+        {
+            sessionKey,
+            account = new { email = user.Email, role = user.Role, status = user.Status },
+            passwordSetupRequired,
+        });
+    }
+
+    [HttpPost("auth/password")]
+    public async Task<IActionResult> SetStudentPassword([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        if (current.User!.Role is not ("student" or "tutor" or "tutee"))
+            return Forbidden("Only student accounts can set a student password.");
+
+        var password = String(body, "password");
+        if (string.IsNullOrEmpty(password))
+            return BadRequest(Error("password_required", "Enter a password."));
+
+        var result = await identity.SetStudentPasswordAsync(current.User.Id, current.User.Email, password);
+        if (!result.Succeeded)
+        {
+            var message = string.Join(" ", result.Errors.Select(error => error.Description));
+            return BadRequest(Error("password_setup_failed", message));
+        }
+
+        return Ok(new { passwordSet = true });
+    }
+
+    [HttpPost("auth/password/login")]
+    public async Task<IActionResult> StudentPasswordLogin([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        if (!TrustedHost()) return Forbid();
+        var email = String(body, "email")?.Trim().ToLowerInvariant();
+        var password = String(body, "password");
+        var termsAccepted = body.TryGetProperty("termsAccepted", out var terms) && terms.ValueKind == JsonValueKind.True;
+        if (!termsAccepted)
+            return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
+        if (!IsSchoolEmail(email) || string.IsNullOrEmpty(password))
+            return Unauthorized(Error("invalid_credentials", "The school email or password is incorrect."));
+
+        var user = await store.FindUserAsync(email!, cancellationToken);
+        if (user is null
+            || user.Role is not ("student" or "tutor" or "tutee")
+            || await identity.AuthenticateStudentAsync(user.Id, email!, password) is null)
+        {
+            return Unauthorized(Error("invalid_credentials", "The school email or password is incorrect."));
+        }
+
+        return await SendVerificationCodeAsync(email!, termsAccepted, cancellationToken);
+    }
+
+    private async Task<IActionResult> SendVerificationCodeAsync(
+        string email,
+        bool termsAccepted,
+        CancellationToken cancellationToken)
+    {
+        var pending = pendingLogins.Create(email, termsAccepted);
+        if (pending is null)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_capacity_reached", "Sign-in is temporarily unavailable. Try again later."));
+
+        return await SendVerificationCodeAsync(pending, cancellationToken);
+    }
+
+    private async Task<IActionResult> SendVerificationCodeAsync(
+        PendingLoginStart pending,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await verificationEmailSender.SendAsync(pending.Email, pending.Code, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            pendingLogins.Cancel(pending.AttemptId);
+            throw;
+        }
+        catch (AmazonServiceException exception)
+        {
+            pendingLogins.Cancel(pending.AttemptId);
+            logger.LogError("SES verification email delivery failed with AWS error code {ErrorCode}.", exception.ErrorCode);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_failed", "The verification email could not be sent. Try again later."));
+        }
+        catch (AmazonClientException exception)
+        {
+            pendingLogins.Cancel(pending.AttemptId);
+            logger.LogError("SES verification email delivery failed with client error type {ErrorType}.", exception.GetType().Name);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_failed", "The verification email could not be sent. Try again later."));
+        }
+        catch (InvalidOperationException exception)
+        {
+            pendingLogins.Cancel(pending.AttemptId);
+            logger.LogError("Verification email delivery configuration is invalid: {Message}", exception.Message);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, Error("verification_delivery_unavailable", "Email verification is not configured."));
+        }
+
+        return Ok(new
+        {
+            attemptId = pending.AttemptId,
+            expiresInSeconds = pending.ExpiresInSeconds,
+            codeLength = pending.CodeLength,
+        });
     }
 
     [HttpPost("auth/admin/login")]
@@ -164,9 +287,18 @@ public sealed class DataController : ControllerBase
         if (current.Error is not null) return current.Error;
         var rows = await store.QueryAsync("""
             SELECT
-              (SELECT COUNT(*) FROM study_sessions WHERE created_by_user_id = @user AND session_status IN ('confirmed', 'completed') AND scheduled_start_utc >= DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-01')) AS sessions_this_month,
-              (SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, scheduled_start_utc, scheduled_end_utc)) / 60, 0) FROM study_sessions WHERE created_by_user_id = @user AND session_status = 'completed') AS hours_logged,
-              (SELECT COUNT(DISTINCT sp.user_id) FROM session_participants sp JOIN study_sessions ss ON ss.id = sp.study_session_id WHERE ss.created_by_user_id = @user AND sp.user_id <> @user) AS tutor_connections,
+              (SELECT COUNT(DISTINCT ss.id) FROM study_sessions ss
+               JOIN session_participants mine ON mine.study_session_id = ss.id
+               WHERE mine.user_id = @user AND ss.session_status IN ('confirmed', 'completed')
+                 AND ss.scheduled_start_utc >= DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-01')
+                 AND ss.scheduled_start_utc < DATE_ADD(DATE_FORMAT(UTC_TIMESTAMP(3), '%Y-%m-01'), INTERVAL 1 MONTH)) AS sessions_this_month,
+              (SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, ss.scheduled_start_utc, ss.scheduled_end_utc)) / 60, 0)
+               FROM study_sessions ss JOIN session_participants mine ON mine.study_session_id = ss.id
+               WHERE mine.user_id = @user AND ss.session_status = 'completed') AS hours_logged,
+              (SELECT COUNT(DISTINCT peer.user_id) FROM study_sessions ss
+               JOIN session_participants mine ON mine.study_session_id = ss.id AND mine.user_id = @user
+               JOIN session_participants peer ON peer.study_session_id = ss.id AND peer.user_id <> @user
+               WHERE ss.session_status IN ('confirmed', 'completed')) AS tutor_connections,
               (SELECT COUNT(*) FROM learning_requests WHERE tutee_user_id = @user AND request_status = 'open') AS open_requests
             """, cancellationToken, ("@user", current.User!.Id));
         return Ok(rows.SingleOrDefault() ?? new Dictionary<string, object?>());
@@ -297,14 +429,14 @@ public sealed class DataController : ControllerBase
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
         var rows = await store.QueryAsync("""
-            SELECT u.id, u.email, u.display_name, sp.grade_level, sp.strand,
+            SELECT u.id, u.display_name, sp.grade_level, sp.strand,
                    GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ', ') AS subjects
             FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
             LEFT JOIN student_profiles sp ON sp.user_id = u.id
             LEFT JOIN tutor_subjects ts ON ts.tutor_user_id = u.id
             LEFT JOIN subjects s ON s.id = ts.subject_id
             WHERE u.account_status = 'active' AND r.role_key = 'tutor'
-            GROUP BY u.id, u.email, u.display_name, sp.grade_level, sp.strand ORDER BY u.display_name
+            GROUP BY u.id, u.display_name, sp.grade_level, sp.strand ORDER BY u.display_name
             """, cancellationToken);
         return Ok(new { items = rows });
     }
@@ -314,6 +446,8 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
+        if (current.User!.Role != "tutor")
+            return Forbidden("Only tutors can browse students seeking peer support.");
         var rows = await store.QueryAsync("""
             SELECT lr.id AS request_id, u.id AS user_id, u.display_name, sp.grade_level, sp.strand,
                    s.name AS subject, lr.requested_help, lr.current_proficiency, lr.created_at
@@ -322,6 +456,74 @@ public sealed class DataController : ControllerBase
             WHERE lr.request_status = 'open' AND u.account_status = 'active' ORDER BY lr.created_at DESC
             """, cancellationToken);
         return Ok(new { items = rows });
+    }
+
+    [HttpGet("connect/recommendations")]
+    public async Task<IActionResult> ConnectRecommendations([FromQuery] long? requestId, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        if (requestId is <= 0) return BadRequest(Error("invalid_request_id", "The learning request ID must be positive."));
+        if (current.User!.Role is not ("tutor" or "student" or "tutee"))
+            return Forbidden("Only tutors and students can request matching recommendations.");
+
+        return Ok(new
+        {
+            algorithm = matchingAlgorithms.ActiveAlgorithm,
+            direction = current.User!.Role == "tutor" ? "tutees" : "tutors",
+            items = await GetMatchingRecommendationsAsync(current.User, requestId, null, cancellationToken),
+        });
+    }
+
+    [HttpPost("connect")]
+    public async Task<IActionResult> Connect([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        var user = current.User!;
+        var isTutor = user.Role == "tutor";
+        if (!isTutor && user.Role is not ("student" or "tutee"))
+            return Forbidden("Only tutors and students can request a connection.");
+
+        var requestId = Long(body, "requestId");
+        var candidateUserId = Long(body, "candidateUserId");
+        var scheduledStart = ParseDate(String(body, "scheduledStartUtc"));
+        var scheduledEnd = ParseDate(String(body, "scheduledEndUtc"));
+        if (requestId is null or <= 0 || candidateUserId is null or <= 0)
+            return BadRequest(Error("invalid_match", "A valid learning request and recommended user are required."));
+        if (scheduledStart is null || scheduledEnd is null || scheduledStart <= DateTime.UtcNow || scheduledEnd <= scheduledStart)
+            return BadRequest(Error("invalid_session_time", "Choose a future start time and an end time after it."));
+
+        var algorithm = matchingAlgorithms.ActiveAlgorithm;
+        var recommendation = (await GetMatchingRecommendationsAsync(
+            user, requestId, candidateUserId, cancellationToken)).SingleOrDefault();
+        if (recommendation is null)
+            return Conflict(Error("match_unavailable", "This user is no longer an eligible match for the learning request."));
+
+        var tuteeUserId = isTutor ? candidateUserId.Value : user.Id;
+        var tutorUserId = isTutor ? user.Id : candidateUserId.Value;
+        var subjectId = await SubjectId(recommendation.Subject, cancellationToken);
+        try
+        {
+            var sessionId = await store.CreateConnectionSessionAsync(
+                requestId.Value,
+                tuteeUserId,
+                tutorUserId,
+                user.Id,
+                subjectId,
+                algorithm.Id,
+                recommendation.Score,
+                recommendation.ScoreComponents,
+                recommendation.Explanation,
+                scheduledStart.Value,
+                scheduledEnd.Value,
+                cancellationToken);
+            return Ok(new { sessionId, requestId, status = "requested" });
+        }
+        catch (ConnectionRequestConflictException exception)
+        {
+            return Conflict(Error("connection_conflict", exception.Message));
+        }
     }
 
     [HttpGet("learning-requests")]
@@ -343,18 +545,23 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
+        if (current.User!.Role is not ("student" or "tutee"))
+            return Forbidden("Only students and tutees can create a learning request.");
         var subject = String(body, "subject");
         if (string.IsNullOrWhiteSpace(subject)) return BadRequest(Error("subject_required", "A subject is required."));
+        var requestedHelp = String(body, "requestedHelp")?.Trim();
+        var proficiency = Number(body, "currentProficiency");
+        var preferredFormat = String(body, "preferredFormat") ?? "either";
+        if (requestedHelp?.Length > 4000)
+            return BadRequest(Error("requested_help_too_long", "The learning request details are too long."));
+        if (proficiency is < 1 or > 5)
+            return BadRequest(Error("invalid_proficiency", "Current proficiency must be between 1 and 5."));
+        if (preferredFormat is not ("one_to_one" or "group" or "either"))
+            return BadRequest(Error("invalid_preferred_format", "The preferred session format is invalid."));
         var subjectId = await SubjectId(subject!, cancellationToken);
-        await store.ExecuteAsync("""
-            INSERT INTO learning_requests (tutee_user_id, subject_id, current_proficiency, requested_help, preferred_format)
-            VALUES (@user, @subject, @proficiency, @help, @format)
-            """, cancellationToken,
-            ("@user", current.User!.Id), ("@subject", subjectId),
-            ("@proficiency", Number(body, "currentProficiency")),
-            ("@help", String(body, "requestedHelp")),
-            ("@format", String(body, "preferredFormat") ?? "either"));
-        return Ok(new { status = "created" });
+        var requestId = await store.CreateLearningRequestAsync(
+            current.User.Id, subjectId, proficiency, requestedHelp, preferredFormat, cancellationToken);
+        return Ok(new { requestId, status = "created" });
     }
 
     [HttpGet("sessions")]
@@ -364,38 +571,25 @@ public sealed class DataController : ControllerBase
         if (current.Error is not null) return current.Error;
         var rows = await store.QueryAsync("""
             SELECT ss.id, s.name AS subject, ss.scheduled_start_utc, ss.scheduled_end_utc,
-                   ss.session_status, ss.created_by_user_id
-            FROM study_sessions ss JOIN session_participants sp ON sp.study_session_id = ss.id
+                   ss.session_status, ss.created_by_user_id,
+                   mine.participation_status AS current_participation_status,
+                   MAX(CASE WHEN peer.user_id <> @id THEN peer_user.display_name END) AS peer_name,
+                   MAX(CASE WHEN peer.user_id <> @id THEN peer.participant_role END) AS peer_role
+            FROM study_sessions ss
+            JOIN session_participants mine ON mine.study_session_id = ss.id AND mine.user_id = @id
+            LEFT JOIN session_participants peer ON peer.study_session_id = ss.id
+            LEFT JOIN users peer_user ON peer_user.id = peer.user_id
             JOIN subjects s ON s.id = ss.subject_id
-            WHERE sp.user_id = @id OR ss.created_by_user_id = @id
-            GROUP BY ss.id, s.name, ss.scheduled_start_utc, ss.scheduled_end_utc, ss.session_status, ss.created_by_user_id
+            GROUP BY ss.id, s.name, ss.scheduled_start_utc, ss.scheduled_end_utc, ss.session_status,
+                     ss.created_by_user_id, mine.participation_status
             ORDER BY ss.scheduled_start_utc DESC
             """, cancellationToken, ("@id", current.User!.Id));
         return Ok(new { items = rows });
     }
 
     [HttpPost("sessions")]
-    public async Task<IActionResult> CreateSession([FromBody] JsonElement body, CancellationToken cancellationToken)
-    {
-        var current = await CurrentUser(cancellationToken);
-        if (current.Error is not null) return current.Error;
-        var subject = String(body, "subject");
-        var start = String(body, "scheduledStartUtc");
-        var end = String(body, "scheduledEndUtc");
-        if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(start) || string.IsNullOrWhiteSpace(end))
-            return BadRequest(Error("session_fields_required", "Subject, start, and end are required."));
-        var scheduledStart = ParseDate(start);
-        var scheduledEnd = ParseDate(end);
-        if (scheduledStart is null || scheduledEnd is null || scheduledEnd <= scheduledStart)
-            return BadRequest(Error("invalid_session_time", "The session end must be after the start."));
-        var subjectId = await SubjectId(subject!, cancellationToken);
-        var sessionId = await store.ScalarAsync("""
-            INSERT INTO study_sessions (session_type, subject_id, created_by_user_id, scheduled_start_utc, scheduled_end_utc)
-            VALUES ('one_to_one', @subject, @user, @start, @end); SELECT LAST_INSERT_ID();
-            """, cancellationToken, ("@subject", subjectId), ("@user", current.User!.Id), ("@start", scheduledStart), ("@end", scheduledEnd));
-        await store.ExecuteAsync("INSERT INTO session_participants (study_session_id, user_id, participant_role, participation_status) VALUES (@session, @user, 'tutee', 'accepted')", cancellationToken, ("@session", sessionId), ("@user", current.User.Id));
-        return Ok(new { id = sessionId, status = "created" });
-    }
+    public Task<IActionResult> CreateSession([FromBody] JsonElement body, CancellationToken cancellationToken) =>
+        Connect(body, cancellationToken);
 
     [HttpPatch("sessions/{id:long}")]
     public async Task<IActionResult> UpdateSession(long id, [FromBody] JsonElement body, CancellationToken cancellationToken)
@@ -405,25 +599,14 @@ public sealed class DataController : ControllerBase
         var status = String(body, "status");
         if (status is not ("confirmed" or "cancelled" or "completed" or "no_show"))
             return BadRequest(Error("invalid_session_status", "The session status is invalid."));
-        var existing = await store.QueryAsync("""
-            SELECT ss.session_status
-            FROM study_sessions ss
-            WHERE ss.id = @id AND (ss.created_by_user_id = @user OR EXISTS (SELECT 1 FROM session_participants sp WHERE sp.study_session_id = ss.id AND sp.user_id = @user AND sp.participation_status IN ('invited', 'accepted')))
-            LIMIT 1
-            """, cancellationToken, ("@id", id), ("@user", current.User!.Id));
-        if (existing.Count == 0) return NotFound(Error("session_not_found", "The session was not found or is not accessible to this account."));
-        var previous = Convert.ToString(existing[0]["session_status"]);
-        var validTransition = previous switch
+        var result = await store.UpdateConnectionSessionAsync(id, current.User!.Id, status, cancellationToken);
+        return result switch
         {
-            "requested" => status is "confirmed" or "cancelled",
-            "confirmed" => status is "completed" or "cancelled" or "no_show",
-            _ => false,
+            SessionStatusUpdateResult.Updated => Ok(new { status = "updated" }),
+            SessionStatusUpdateResult.NotFound => NotFound(Error("session_not_found", "The session was not found or is not accessible to this account.")),
+            SessionStatusUpdateResult.InviteeResponseRequired => Forbidden("Only the invited peer can confirm a requested session."),
+            _ => Conflict(Error("invalid_session_transition", "The session cannot move from its current status to the requested status.")),
         };
-        if (!validTransition) return Conflict(Error("invalid_session_transition", "The session cannot move from its current status to the requested status."));
-        var changed = await store.ExecuteAsync("UPDATE study_sessions SET session_status = @status WHERE id = @id AND session_status = @previous", cancellationToken, ("@status", status), ("@previous", previous), ("@id", id));
-        if (changed == 0) return Conflict(Error("session_update_conflict", "The session changed before this update completed."));
-        await store.ExecuteAsync("INSERT INTO session_audits (actor_user_id, session_id, previous_status, next_status) VALUES (@actor, @session, @previous, @next)", cancellationToken, ("@actor", current.User!.Id), ("@session", id), ("@previous", previous), ("@next", status));
-        return Ok(new { status = "updated" });
     }
 
     [HttpGet("schedule")]
@@ -558,7 +741,20 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        return Ok(new { items = await store.QueryAsync("SELECT fp.id, fp.author_user_id, u.display_name AS author, fp.title, fp.category, fp.description, fp.created_at, COUNT(fv.voter_user_id) AS votes FROM feedback_posts fp JOIN users u ON u.id = fp.author_user_id LEFT JOIN feedback_votes fv ON fv.post_id = fp.id WHERE fp.moderation_status = 'visible' GROUP BY fp.id, fp.author_user_id, u.display_name, fp.title, fp.category, fp.description, fp.created_at ORDER BY fp.created_at DESC", cancellationToken) });
+        return Ok(new
+        {
+            items = await store.QueryAsync("""
+                SELECT fp.id, fp.author_user_id, u.display_name AS author, fp.title, fp.category,
+                       fp.description, fp.created_at, COUNT(fv.voter_user_id) AS votes,
+                       MAX(CASE WHEN fv.voter_user_id = @user THEN 1 ELSE 0 END) AS voted_by_current_user
+                FROM feedback_posts fp
+                JOIN users u ON u.id = fp.author_user_id
+                LEFT JOIN feedback_votes fv ON fv.post_id = fp.id
+                WHERE fp.moderation_status = 'visible'
+                GROUP BY fp.id, fp.author_user_id, u.display_name, fp.title, fp.category, fp.description, fp.created_at
+                ORDER BY fp.created_at DESC
+                """, cancellationToken, ("@user", current.User!.Id))
+        });
     }
 
     [HttpPost("feedback")]
@@ -598,6 +794,23 @@ public sealed class DataController : ControllerBase
         return Ok(new { status = "received" });
     }
 
+    [HttpGet("analytics/consent")]
+    public async Task<IActionResult> AnalyticsConsentStatus(CancellationToken cancellationToken)
+    {
+        var current = await CurrentUser(cancellationToken);
+        if (current.Error is not null) return current.Error;
+        var consented = Convert.ToInt32(await store.ScalarAsync("""
+            SELECT COUNT(*)
+            FROM research_participants rp
+            JOIN research_consents rc ON rc.user_id = rp.user_id
+            WHERE rp.user_id = @user
+              AND rp.withdrawn_at IS NULL
+              AND rc.consent_type = 'phase2_usage_analytics'
+              AND rc.withdrawn_at IS NULL
+            """, cancellationToken, ("@user", current.User!.Id))) > 0;
+        return Ok(new { consented });
+    }
+
     [HttpPost("analytics/events")]
     public async Task<IActionResult> AnalyticsEvent([FromBody] JsonElement body, CancellationToken cancellationToken)
     {
@@ -607,9 +820,20 @@ public sealed class DataController : ControllerBase
         var featureKey = String(body, "featureKey") ?? "unknown";
         var duration = Number(body, "durationSeconds");
         var allowedEvents = new[] { "page_view", "feature_view", "interaction", "session_action", "resource_submit", "feedback_submit", "support_submit" };
-        if (!allowedEvents.Contains(eventType, StringComparer.Ordinal) || featureKey.Length > 80 || duration is < 0 or > 86400)
+        if (!allowedEvents.Contains(eventType, StringComparer.Ordinal) || featureKey.Length > 64 || duration is < 0 or > 86400)
             return BadRequest(Error("invalid_analytics_event", "The analytics event is not allowed or contains invalid values."));
-        var participant = await store.ScalarAsync("SELECT participant_key FROM research_participants rp JOIN research_consents rc ON rc.user_id = rp.user_id WHERE rp.user_id = @user AND rp.withdrawn_at IS NULL AND rc.withdrawn_at IS NULL LIMIT 1", cancellationToken, ("@user", current.User!.Id));
+        var participant = await store.ScalarAsync("""
+            SELECT rp.participant_key
+            FROM research_participants rp
+            WHERE rp.user_id = @user AND rp.withdrawn_at IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM research_consents rc
+                  WHERE rc.user_id = rp.user_id
+                    AND rc.consent_type = 'phase2_usage_analytics'
+                    AND rc.withdrawn_at IS NULL
+              )
+            LIMIT 1
+            """, cancellationToken, ("@user", current.User!.Id));
         if (participant is null) return StatusCode(403, Error("analytics_consent_required", "Research analytics requires active consent."));
         await store.ExecuteAsync("INSERT INTO analytics_events (participant_key, event_type, feature_key, duration_seconds) VALUES (@participant, @event, @feature, @duration)", cancellationToken, ("@participant", participant), ("@event", eventType), ("@feature", featureKey), ("@duration", duration));
         return Ok(new { status = "recorded" });
@@ -622,9 +846,9 @@ public sealed class DataController : ControllerBase
         if (current.Error is not null) return current.Error;
         var version = String(body, "consentVersion") ?? "phase2-v1";
         if (version.Length > 64) return BadRequest(Error("invalid_consent_version", "The consent version is too long."));
-        await store.ExecuteAsync("INSERT INTO research_consents (user_id, consent_type, consent_version) VALUES (@user, 'phase2_usage_analytics', @version)", cancellationToken, ("@user", current.User!.Id), ("@version", version));
-        await store.ExecuteAsync("INSERT INTO research_participants (user_id, participant_key) VALUES (@user, UUID()) ON DUPLICATE KEY UPDATE withdrawn_at = NULL", cancellationToken, ("@user", current.User.Id));
-        return Ok(new { consented = true, consentVersion = version });
+        var consented = Boolean(body, "consented", true) ?? true;
+        await store.SetAnalyticsConsentAsync(current.User!.Id, version, consented, cancellationToken);
+        return Ok(new { consented, consentVersion = version });
     }
 
     [HttpGet("analytics/summary")]
@@ -632,7 +856,26 @@ public sealed class DataController : ControllerBase
     {
         var current = await CurrentUser(cancellationToken);
         if (current.Error is not null) return current.Error;
-        return Ok(new { items = await store.QueryAsync("SELECT event_type, feature_key, COUNT(*) AS events, COALESCE(SUM(duration_seconds), 0) AS duration_seconds FROM analytics_events ae JOIN research_participants rp ON rp.participant_key = ae.participant_key WHERE rp.user_id = @user GROUP BY event_type, feature_key ORDER BY events DESC", cancellationToken, ("@user", current.User!.Id)) });
+        return Ok(new
+        {
+            items = await store.QueryAsync("""
+                SELECT ae.event_type, ae.feature_key, COUNT(*) AS events,
+                       COALESCE(SUM(ae.duration_seconds), 0) AS duration_seconds
+                FROM analytics_events ae
+                JOIN research_participants rp
+                  ON rp.participant_key = ae.participant_key
+                 AND rp.user_id = @user
+                 AND rp.withdrawn_at IS NULL
+                WHERE EXISTS (
+                    SELECT 1 FROM research_consents rc
+                    WHERE rc.user_id = rp.user_id
+                      AND rc.consent_type = 'phase2_usage_analytics'
+                      AND rc.withdrawn_at IS NULL
+                )
+                GROUP BY ae.event_type, ae.feature_key
+                ORDER BY events DESC
+                """, cancellationToken, ("@user", current.User!.Id))
+        });
     }
 
     private async Task<(PalsUser? User, IActionResult? Error)> CurrentUser(CancellationToken cancellationToken)
@@ -666,6 +909,13 @@ public sealed class DataController : ControllerBase
     }
     private static bool InvalidArray(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Array;
     private static int? Number(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : null;
+    private static long? Long(JsonElement body, string name) => body.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) ? number : null;
+    private static int? OptionalInt(IReadOnlyDictionary<string, object?> row, string name) =>
+        row.TryGetValue(name, out var value) && value is not null
+            ? Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+    private static string? OptionalString(IReadOnlyDictionary<string, object?> row, string name) =>
+        row.TryGetValue(name, out var value) ? Convert.ToString(value) : null;
     private static bool? Boolean(JsonElement body, string name, bool? fallback) => body.TryGetProperty(name, out var value) && (value.ValueKind is JsonValueKind.True or JsonValueKind.False) ? value.GetBoolean() : fallback;
     private static DateTime? ParseDate(string? value)
     {
@@ -678,6 +928,112 @@ public sealed class DataController : ControllerBase
         await store.ExecuteAsync("INSERT INTO subjects (name, is_active) VALUES (@name, TRUE) ON DUPLICATE KEY UPDATE is_active = TRUE", cancellationToken, ("@name", name.Trim()));
         return Convert.ToInt64(await store.ScalarAsync("SELECT id FROM subjects WHERE name = @name LIMIT 1", cancellationToken, ("@name", name.Trim())));
     }
+
+    private async Task<IReadOnlyList<MatchingRecommendation>> GetMatchingRecommendationsAsync(
+        PalsUser user,
+        long? requestId,
+        long? candidateUserId,
+        CancellationToken cancellationToken)
+    {
+        var isTutor = user.Role == "tutor";
+        if (!isTutor && user.Role is not ("student" or "tutee"))
+            throw new InvalidOperationException("The account role cannot request matching recommendations.");
+
+        var rows = await store.QueryAsync("""
+            SELECT lr.id AS learning_request_id, lr.tutee_user_id, tutee.display_name AS tutee_display_name,
+                   tutee_profile.grade_level AS tutee_grade, tutee_profile.strand AS tutee_strand,
+                   lr.current_proficiency, lr.requested_help,
+                   ts.tutor_user_id, tutor.display_name AS tutor_display_name,
+                   tutor_profile.grade_level AS tutor_grade, tutor_profile.strand AS tutor_strand,
+                   ts.proficiency_level AS tutor_proficiency, ts.verification_status AS tutor_verification_status,
+                   s.name AS subject
+            FROM learning_requests lr
+            JOIN users tutee ON tutee.id = lr.tutee_user_id AND tutee.account_status = 'active'
+            JOIN subjects s ON s.id = lr.subject_id AND s.is_active = TRUE
+            JOIN tutor_subjects ts ON ts.subject_id = lr.subject_id AND ts.verification_status <> 'rejected'
+            JOIN users tutor ON tutor.id = ts.tutor_user_id AND tutor.account_status = 'active'
+            JOIN user_roles tutor_role ON tutor_role.user_id = tutor.id
+            JOIN roles tutor_role_type ON tutor_role_type.id = tutor_role.role_id AND tutor_role_type.role_key = 'tutor'
+            LEFT JOIN student_profiles tutee_profile ON tutee_profile.user_id = tutee.id
+            LEFT JOIN student_profiles tutor_profile ON tutor_profile.user_id = tutor.id
+            WHERE lr.request_status = 'open'
+              AND lr.preferred_format IN ('one_to_one', 'either')
+              AND ts.tutor_user_id <> lr.tutee_user_id
+              AND (@is_tutor = TRUE AND ts.tutor_user_id = @user_id
+                   OR @is_tutor = FALSE AND lr.tutee_user_id = @user_id)
+              AND (@request_id IS NULL OR lr.id = @request_id)
+              AND (@candidate_id IS NULL OR
+                   (@is_tutor = TRUE AND lr.tutee_user_id = @candidate_id)
+                   OR (@is_tutor = FALSE AND ts.tutor_user_id = @candidate_id))
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM match_recommendations mr
+                  JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+                  JOIN study_sessions ss ON ss.id = smr.study_session_id
+                  WHERE mr.learning_request_id = lr.id
+                    AND mr.tutor_user_id = ts.tutor_user_id
+                    AND ss.session_status IN ('requested', 'confirmed')
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM match_recommendations declined
+                  WHERE declined.learning_request_id = lr.id
+                    AND declined.tutor_user_id = ts.tutor_user_id
+                    AND declined.recommendation_status = 'declined'
+              )
+            ORDER BY lr.created_at DESC, tutor.display_name
+            """, cancellationToken,
+            ("@is_tutor", isTutor),
+            ("@user_id", user.Id),
+            ("@request_id", requestId),
+            ("@candidate_id", candidateUserId));
+
+        var algorithm = matchingAlgorithms.ActiveAlgorithm;
+        var recommendations = new List<MatchingRecommendation>();
+        foreach (var row in rows)
+        {
+            var pair = new MatchingPair(
+                Convert.ToInt64(row["learning_request_id"], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToInt64(row["tutee_user_id"], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToString(row["tutee_display_name"]) ?? "",
+                OptionalInt(row, "tutee_grade"),
+                OptionalString(row, "tutee_strand"),
+                OptionalInt(row, "current_proficiency"),
+                OptionalString(row, "requested_help"),
+                Convert.ToInt64(row["tutor_user_id"], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToString(row["tutor_display_name"]) ?? "",
+                OptionalInt(row, "tutor_grade"),
+                OptionalString(row, "tutor_strand"),
+                Convert.ToInt32(row["tutor_proficiency"], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToString(row["tutor_verification_status"]) ?? "",
+                Convert.ToString(row["subject"]) ?? "");
+
+            var score = MatchingScorer.Score(pair, algorithm.Id);
+            if (score is null) continue;
+
+            recommendations.Add(new MatchingRecommendation(
+                pair.LearningRequestId,
+                isTutor ? pair.TuteeUserId : pair.TutorUserId,
+                isTutor ? pair.TuteeDisplayName : pair.TutorDisplayName,
+                isTutor ? "tutee" : "tutor",
+                pair.Subject,
+                pair.RequestedHelp,
+                pair.CurrentProficiency,
+                pair.TutorProficiency,
+                isTutor ? pair.TuteeGrade : pair.TutorGrade,
+                isTutor ? pair.TuteeStrand : pair.TutorStrand,
+                pair.TutorVerificationStatus,
+                Math.Round(score.Value, 2),
+                score.Components,
+                score.Explanation));
+        }
+
+        return recommendations
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.CandidateName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private static bool IsSchoolEmail(string? email) => email is not null && email.EndsWith("@cubao.sti.edu.ph", StringComparison.OrdinalIgnoreCase) && System.Text.RegularExpressions.Regex.IsMatch(email[..^"@cubao.sti.edu.ph".Length], @"^[a-z]+\.[0-9]{6,}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     private static object AccountDto(PalsAccountSummary account) => new { id = account.Id, email = account.Email, displayName = account.DisplayName, accountStatus = account.Status, role = account.Roles.FirstOrDefault() ?? "student", roles = account.Roles };
 }

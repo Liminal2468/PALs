@@ -1,5 +1,9 @@
 node_modules/
 **/node_modules/
+**/bin/
+**/.aws/
+config.yaml
+.env
 authentication/.provider.env
 database/keys/generated/*
 database/keys/trusted/*

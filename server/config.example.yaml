@@ -1,10 +1,14 @@
 # Copy this file to server/config.yaml for local development.
 # Blank or omitted values are ignored. Process environment values take precedence.
 
+# Development WebApp Server 
+
 PORT: 8432 # VALUE: an unused TCP port, for example 8432
 BIND_ADDRESS: 127.0.0.1 # VALUE: loopback address or an explicitly trusted bind address
 DATA_PROTECTION_KEY_PATH: storage/dataprotection # VALUE: writable path for persistent ASP.NET keys
 MFA_REQUIRE_PRIVILEGED: false # VALUE: true or false; require TOTP for admin/developer after setup
+
+# Database Configs 
 
 DB_HOST: 127.0.0.1 # VALUE: MariaDB host reachable by DBSERV
 DB_PORT: 3306 # VALUE: MariaDB TCP port
@@ -13,10 +17,20 @@ DB_PASSWORD: # VALUE: keep in server/.env or the process environment; YAML is ig
 DB_NAME: palsysdb # VALUE: database name
 DB_ALLOWED_TABLES: roles,users,user_roles,student_profiles,subjects,topics,tutor_subjects,learning_requests,availability_slots,match_recommendations,study_sessions,session_participants,session_match_recommendations,session_feedback,research_consents,research_participants,analytics_events,conversations,conversation_members,messages,web_sessions,schedule_events,auth_identities,admin_credentials,auth_attempts,identity_users,identity_roles,identity_user_claims,identity_role_claims,identity_user_roles,identity_user_logins,identity_user_tokens,identity_mfa_replays,resources,resource_audits,feedback_posts,feedback_votes,support_tickets,user_subject_preferences,account_audits,session_audits,platform_pages,platform_page_audits # VALUE: comma-separated tables that exist in the selected database
 
-HOST_SHARED_KEY: replace-with-a-private-host-to-dbserv-key # VALUE: the same private key configured by Mentos
 JWT_ISSUER: mentos-host # VALUE: the trusted JWT issuer name
 JWT_AUDIENCE: mentos-db # VALUE: the trusted JWT audience name
 JWT_TRUSTED_KEYS_DIR: database/keys/trusted # VALUE: directory containing trusted public keys when JWT validation is enabled
+
+# TOTP Environments
+
+# HOST_SHARED_KEY and SHARED_SECRET are loaded from the ignored .env file, not YAML.
+STEP: 30 # VALUE: TOTP step in seconds
+ATOMIC_ALLOWEDWINDOW: 1 # VALUE: adjacent TOTP steps allowed on each side
+CODE_LENGTH: 6 # VALUE: fixed six-digit verification code length
+MAX_ATTEMPTS: 5 # VALUE: incorrect code submissions before invalidating an attempt
+PENDING_TTL: 300 # VALUE: maximum pending-login lifetime in seconds
+SENDER_EMAIL: # VALUE: SES-verified sender identity address
+AWS_REGION: ap-southeast-2 # VALUE: AWS region containing the SES identity
 
 DOTNET_ENVIRONMENT: Development # VALUE: Development, Staging, or Production
 ASPNETCORE_ENVIRONMENT: Development # VALUE: Development, Staging, or Production

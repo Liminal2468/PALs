@@ -8,7 +8,9 @@
 
 This is private contributed from STI College Cubao. Also to prevent Overflow in the main branch. <sub>if you require help with merging through git please refer to [Merge Branch](bindoc/merge-branch.md)</sub>
 
-As of this moment some part has yet to be updated, such as [server](server/) as some are still a template.
+The current application runs as two .NET services: DBSERV in [server/](server/)
+and the browser-facing HOST in [mentos/](mentos/). The archived implementations
+and historical documentation are preserved under [bindoc/](bindoc/).
 
 > [!NOTE]
 > THIS PROJECT REQUIRES INTERNET ACCESS TO REACT THE DATABASE SERVER <sup>[1](bindoc/maindoc/notes/apmain-whatis.md)</sup>
@@ -29,7 +31,7 @@ As of this moment some part has yet to be updated, such as [server](server/) as 
 ### Build
 
 
-To build the Linux x64 DBSERV executable locally, run: 
+To build the Linux x64 DBSERV executable locally, run:
 
 ```bash
 dotnet publish server/Palsys.Server.csproj -c Release -r linux-x64 --self-contained true -o server/publish -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false
@@ -37,7 +39,7 @@ dotnet publish server/Palsys.Server.csproj -c Release -r linux-x64 --self-contai
 
 Then make it executable with: `chmod 0755 server/publish/Palsys.Server`
 
-To install the service using the current project location, run: `
+To install the service using the current project location, run:
 ```bash
 sudo ./server/install-service.sh
 ```
@@ -59,8 +61,9 @@ First configure and start DBSERV:
 ```bash
 cp server/config.example.yaml server/config.yaml
 cp server/.example.env server/.env
+cp mentos/.example.env mentos/.env
 # Edit server/config.yaml for non-secret settings.
-# Edit server/.env and set DB_PASSWORD only.
+# Set DB_PASSWORD, HOST_SHARED_KEY, and a private SHARED_SECRET in server/.env.
 
 cd server
 ./run
@@ -73,7 +76,7 @@ In a second terminal, configure and start Mentos:
 ```bash
 cd REPOSITORY_FOLDER/mentos
 cp config.example.yaml config.yaml
-# Edit config.yaml and set HOST_SHARED_KEY to match server/config.yaml.
+# Set HOST_SHARED_KEY in .env to match server/.env.
 ./run
 ```
 
@@ -90,7 +93,7 @@ Keep `.env` files, `config.yaml` files, shared keys, database passwords, and Dat
 
 **Notice**
 
-Upon version 2.0 to 3.0 the development transistioned to a new backend. 
+Upon version 2.0 to 3.0 the development transitioned to a new backend.
 
 ### **Backend Stack**
 
@@ -102,13 +105,28 @@ Upon version 2.0 to 3.0 the development transistioned to a new backend.
 | Database             | MySQL, or other database|
 | Authentication       | ASP.NET Core Identity   |
 
-With the current implementation here are still missing features, but those parts are being taken cared and will manage for a while. 
-The email verification implementation is still in development and will be integrated once it is migrated ti C# for now it runs on python.
+Some features remain under development. The active email-verification flow is
+implemented in C# in DBSERV and sends six-digit codes through AWS SES; the
+archived Python sender is only a historical reference, not part of the live
+login path.
 
+> [!IMPORTANT]
+> PALs now runs as two ASP.NET Core applications; the archived Python and
+> Node/Vite instructions are no longer the way to start the current app. Use
+> the [.NET setup above](#installation): start DBSERV first, then Mentos in a
+> second terminal. The default local URLs are `http://127.0.0.1:8432` for
+> DBSERV and `http://127.0.0.1:8000` for Mentos.
+>
+> Before starting them, copy `server/config.example.yaml` to
+> `server/config.yaml`, `server/.example.env` to `server/.env`, and
+> `mentos/config.example.yaml` to `mentos/config.yaml`. Set database and
+> authentication secrets only in the ignored `.env` files; set the matching
+> HOST/DBSERV shared key on both applications. See [server setup](server/README.md)
+> and [Mentos setup](mentos/README.md) for all settings. Never copy production
+> secrets or production configuration into a local checkout.
 
 ---
 **Current Contributors**
 
 [![Liminal2468](https://img.shields.io/badge/GitHub-Liminal2468-181717?style=flat-square&logo=github)](https://github.com/Liminal2468)
 [![KeiNerokami](https://img.shields.io/badge/GitHub-KeiNerokami-181717?style=flat-square&logo=github)](https://github.com/KeiNerokami)
-

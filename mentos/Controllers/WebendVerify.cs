@@ -20,7 +20,7 @@ public sealed class WebendVerify : WebendController
     {
         var normalized = request.Code?.Trim();
         if (normalized is null || normalized.Length != 6 || !normalized.All(char.IsAsciiDigit))
-            return BadRequest(new { error = new { code = "invalid_verification_code", message = "Verification code must contain exactly six digits." } });
+            return BadRequest(new { error = new { code = "invalid_verification_code", message = "Verification code must contain exactly 6 digits." } });
         var attemptId = PendingAttemptId;
         if (string.IsNullOrWhiteSpace(attemptId))
             return Unauthorized(new { error = new { code = "verification_attempt_missing", message = "Start a new sign-in before entering a verification code." } });

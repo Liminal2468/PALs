@@ -1,0 +1,32 @@
+[Unit]
+Description=PALs Mentos ASP.NET Core HOST
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pals
+Group=pals
+WorkingDirectory=/opt/pals/mentos/current
+EnvironmentFile=/etc/pals/mentos.env
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=BIND_ADDRESS=127.0.0.1
+Environment=PORT=8000
+ExecStart=/usr/bin/dotnet /opt/pals/mentos/current/Mentos.Host.dll
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/pals
+
+[Install]
+WantedBy=multi-user.target

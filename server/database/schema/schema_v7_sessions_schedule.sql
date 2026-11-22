@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS web_sessions (
   KEY idx_web_sessions_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE web_sessions
+  MODIFY session_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL;
+
 CREATE TABLE IF NOT EXISTS schedule_events (
   event_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   created_by_user_id BIGINT UNSIGNED NOT NULL,

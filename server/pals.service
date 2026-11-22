@@ -1,0 +1,32 @@
+[Unit]
+Description=PALs API Server
+Wants=network-online.target mariadb.service
+After=network-online.target mariadb.service
+
+[Service]
+Type=simple
+User=palsys
+Group=palsys
+WorkingDirectory=/opt/server
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=BIND_ADDRESS=127.0.0.1
+Environment=PORT=8432
+Environment=DATA_PROTECTION_KEY_PATH=/var/lib/palsys/dataprotection
+ExecStart=/opt/server/Palsys.Server
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/palsys
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

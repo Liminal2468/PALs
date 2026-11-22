@@ -25,13 +25,14 @@ internal static class YamlEnvironment
             if (string.IsNullOrWhiteSpace(key)
                 || string.IsNullOrWhiteSpace(value)
                 || !EnvironmentKey.IsMatch(key)
-                || key.Equals("DB_PASSWORD", StringComparison.OrdinalIgnoreCase))
+                || key.Equals("DB_PASSWORD", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("HOST_SHARED_KEY", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("SHARED_SECRET", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            // Explicit process values remain authoritative over YAML. Values
-            // loaded from legacy dotenv files are intentionally overridable.
+            // Process and .env values remain authoritative over YAML.
             if (processEnvironmentKeys.Contains(key)) continue;
             Environment.SetEnvironmentVariable(key, value);
         }

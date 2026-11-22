@@ -41,20 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
         element.classList.toggle('form-status-error', isError);
     }
 
-    function updateHeader(profile) {
-        const name = profile?.displayName || 'J. Mike';
-        const section = profile?.section || 'Grade 12 - ITM302';
-        const headerName = document.querySelector('.header-user .user-name');
-        const headerRole = document.querySelector('.header-user .user-role');
-        const avatar = document.querySelector('.header-user .avatar');
-        if (headerName) headerName.textContent = name;
-        if (headerRole) headerRole.textContent = `${profile?.grade || 'Grade 12'} - ${section}`;
-        if (avatar) avatar.textContent = initials(name);
-        document.querySelectorAll('[data-profile-name]').forEach(node => {
-            node.textContent = name;
-        });
-    }
-
     function initials(name) {
         return name.trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase() || 'JM';
     }
@@ -408,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeFeedback() {
         const list = content.querySelector('[data-feedback-list]');
         if (!list) return;
+        if (window.PalsLive) return;
         const status = content.querySelector('[data-feedback-status]');
 
         try {
@@ -491,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeProfile() {
         const form = content.querySelector('[data-profile-form]');
         if (!form) return;
+        if (window.PalsLive) return;
         const status = content.querySelector('[data-profile-status]');
         const defaultProfile = {
             displayName: form.elements.displayName.value,
@@ -554,7 +542,6 @@ document.addEventListener('DOMContentLoaded', () => {
             interests.append(tag);
         });
         if (!profile.subjects?.length) interests.textContent = 'No interests selected yet.';
-        updateHeader(profile);
     }
 
     function normalizeProfile(value, fallback) {
@@ -757,6 +744,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.matchMedia('(max-width: 768px)').matches) shell?.classList.add('collapsed');
     sidebarToggle?.addEventListener('click', () => shell?.classList.toggle('collapsed'));
 
-    updateHeader({ displayName: 'J. Mike', grade: 'Grade 12', section: 'Section not set' });
     loadPage('home');
 });

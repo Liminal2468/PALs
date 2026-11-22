@@ -36,15 +36,42 @@ These scripts are not applied automatically.
 ```bash
 cp config.example.yaml config.yaml
 cp .example.env .env
-# Set DB_PASSWORD in .env and edit the non-secret values in config.yaml.
+# Set DB_PASSWORD, HOST_SHARED_KEY, and SHARED_SECRET in .env.
+# Set SENDER_EMAIL and other non-secret values in config.yaml.
 ./run
 ```
 
 The default listener is `http://127.0.0.1:8432`. Override it with
 `BIND_ADDRESS` and `PORT`, or set them in `config.yaml`. Blank or omitted YAML
-values are ignored; process environment values take precedence. `DB_PASSWORD`
-is intentionally ignored in YAML and must remain in `.env` or the process
-environment.
+values are ignored; process environment values take precedence. `DB_PASSWORD`,
+`HOST_SHARED_KEY`, and `SHARED_SECRET` are loaded only from `.env` or the
+process environment; values for these secrets in YAML are ignored. The
+`HOST_SHARED_KEY` value must match the one in `mentos/.env`.
+
+Student login sends a context-bound, one-time TOTP code through AWS SES. Set
+`SHARED_SECRET` to a private random master secret in `.env` and set
+`SENDER_EMAIL` to an SES-verified sender identity in `config.yaml`; never
+commit either value.
+`STEP`, `ATOMIC_ALLOWEDWINDOW`, `CODE_LENGTH`, `MAX_ATTEMPTS`, and
+`PENDING_TTL` default to `30`, `1`, `6`, `5`, and `300`. Email verification
+codes are fixed at six digits and are bound to their pending login attempt. AWS
+credentials must come from the AWS SDK default credential chain (for example,
+an attached role or environment/profile credentials), not from the YAML file.
+`AWS_REGION` defaults to `ap-southeast-2`.
+
+The login attempt is held in memory and expires at the earlier of `PENDING_TTL`
+or the TOTP code's validity window. A process restart invalidates pending
+attempts. SES delivery failures return a service-unavailable response and do
+not leave the attempt active. No verification code or AWS credential is logged.
+The raw HTML message is loaded from
+[`Identity/email/email.html`](Identity/email/email.html); only its
+`{{ verification_code }}` placeholder is replaced.
+
+An opt-in SES smoke sender is available under
+[`server-tests/email-smoke/`](../server-tests/email-smoke/). It requires both
+`PALS_EMAIL_SEND_CONFIRM=1` and an explicit `--send-to` recipient, uses the
+AWS SDK default credential chain, and never prints the generated code. Do not
+run it against a recipient without permission.
 
 To install the systemd service for the directory containing this checkout,
 run `sudo ./install-service.sh` from `server/`. The installer installs the
@@ -53,9 +80,33 @@ published executable can therefore be located under any checkout path; the
 service does not assume `/opt/palsys`. Persistent Data Protection keys are
 stored in `/var/lib/palsys/dataprotection`.
 
+The apmain deployment uses `pals.service` from this directory and runs the
+self-contained publish from `/opt/server`. It reads `config.yaml` and `.env`
+from that directory, listens on `127.0.0.1:8432`, and keeps Data Protection
+keys in `/var/lib/palsys/dataprotection`. The existing Tailscale Serve route
+should continue to proxy to `http://127.0.0.1:8432`.
+
 The developer interface remains under [`public/`](public/). It is static
 content and is served by the ASP.NET Core host; the old Vite and Node runtime
 files have been removed from the active server tree.
+
+## Authentication reference projects
+
+The original C# TOTP prototype and SES test sender are preserved under
+[`authentication/`](authentication/):
+
+- [`authentication/totp-cs/`](authentication/totp-cs/) contains the standalone
+  TOTP implementation and its RFC/parity tests. Run them with
+  `dotnet test authentication/totp-cs/tests/Totp.Tests/Totp.Tests.csproj`.
+- [`authentication/vf-sender-cs/`](authentication/vf-sender-cs/) contains the
+  standalone SES test sender. Build it with
+  `dotnet build authentication/vf-sender-cs/vf-sender-cs.csproj`.
+
+These are isolated reference projects, not the live login path. The sender
+generates its own test code and uses `RECIPIENT_EMAIL`; the DBSERV login path
+uses the integrated TOTP store and sends that exact code through
+[`Identity/VerificationEmailSender.cs`](Identity/VerificationEmailSender.cs).
+No `.env`, `.aws/credentials`, or build output was copied.
 
 ## Identity setup
 

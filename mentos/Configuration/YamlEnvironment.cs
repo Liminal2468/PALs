@@ -24,12 +24,13 @@ internal static class YamlEnvironment
             var value = (entry.Value as YamlScalarNode)?.Value?.Trim();
             if (string.IsNullOrWhiteSpace(key)
                 || string.IsNullOrWhiteSpace(value)
-                || !EnvironmentKey.IsMatch(key))
+                || !EnvironmentKey.IsMatch(key)
+                || key.Equals("HOST_SHARED_KEY", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            // Explicit process values remain authoritative over YAML.
+            // Process and .env values remain authoritative over YAML.
             if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key))) continue;
             Environment.SetEnvironmentVariable(key, value);
         }

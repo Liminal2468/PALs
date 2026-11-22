@@ -1,0 +1,5 @@
+BIND_ADDRESS: 127.0.0.1
+PORT: 8000
+DBSERV_URL: https://palsys.softshell-grue.ts.net
+DOTNET_ENVIRONMENT: Production
+ASPNETCORE_ENVIRONMENT: Production

@@ -31,11 +31,15 @@ public abstract class WebendController : ControllerBase
     [HttpPost("auth/login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
         var email = request.Email?.Trim().ToLowerInvariant();
         if (!request.TermsAccepted) return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
         if (!IsSchoolEmail(email)) return Unauthorized(Error("account_not_recognized", "Use a recognized STI College Cubao school account."));
         var response = await dbserv.SendAsync(HttpMethod.Post, "/internal/v1/auth/login", email!, new { email, termsAccepted = true }, cancellationToken);
+        if (IsPasswordRequired(response))
+        {
+            ClearPendingAttempt();
+            return Ok(new { passwordRequired = true });
+        }
         return SetPendingFromDbserv(response);
     }
 
@@ -50,6 +54,54 @@ public abstract class WebendController : ControllerBase
         var response = await dbserv.SendAsync(HttpMethod.Post, "/internal/v1/auth/admin/login", request.Email ?? "", request, cancellationToken);
         return SetSessionFromDbserv(response);
     }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("authentication")]
+    [HttpPost("auth/password/login")]
+    public async Task<IActionResult> StudentPasswordLogin([FromBody] StudentPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var email = request.Email?.Trim().ToLowerInvariant();
+        if (!request.TermsAccepted)
+            return BadRequest(Error("terms_required", "Accept the PALs terms before signing in."));
+        if (!IsSchoolEmail(email) || string.IsNullOrEmpty(request.Password))
+            return Unauthorized(Error("invalid_credentials", "The school email or password is incorrect."));
+
+        var response = await dbserv.SendAsync(
+            HttpMethod.Post,
+            "/internal/v1/auth/password/login",
+            email!,
+            new { email, password = request.Password, termsAccepted = true },
+            cancellationToken);
+        return SetPendingFromDbserv(response);
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("authentication")]
+    [HttpPost("auth/resend")]
+    public async Task<IActionResult> ResendVerification(CancellationToken cancellationToken)
+    {
+        var attemptId = PendingAttemptId;
+        if (string.IsNullOrWhiteSpace(attemptId))
+            return Unauthorized(Error("verification_attempt_missing", "Start sign-in before requesting another code."));
+
+        var response = await dbserv.SendAsync(
+            HttpMethod.Post,
+            "/internal/v1/auth/resend",
+            "",
+            new { attemptId },
+            cancellationToken);
+        if ((int)response.StatusCode >= 400)
+        {
+            if (IsPendingAttemptExpired(response))
+                ClearPendingAttempt();
+            return DbservResponse(response);
+        }
+        return SetPendingFromDbserv(response);
+    }
+
+    [HttpPost("auth/password")]
+    public Task<IActionResult> SetStudentPassword([FromBody] StudentPasswordRequest request, CancellationToken cancellationToken) =>
+        ProxyForSession(HttpMethod.Post, "/internal/v1/auth/password", new { request.Password }, cancellationToken);
 
     [HttpDelete("session")]
     [HttpPost("auth/logout")]
@@ -153,10 +205,30 @@ public abstract class WebendController : ControllerBase
     [HttpGet("analytics/summary")]
     public Task<IActionResult> AnalyticsSummary(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/analytics/summary", null, cancellationToken);
 
+    [HttpGet("analytics/consent")]
+    public Task<IActionResult> AnalyticsConsentStatus(CancellationToken cancellationToken) => ProxyForSession(HttpMethod.Get, "/internal/v1/analytics/consent", null, cancellationToken);
+
+    [HttpGet("connect/recommendations")]
+    public Task<IActionResult> ConnectRecommendations([FromQuery] long? requestId, CancellationToken cancellationToken)
+    {
+        var query = requestId.HasValue ? $"?requestId={requestId.Value}" : "";
+        return ProxyForSession(HttpMethod.Get, $"/internal/v1/connect/recommendations{query}", null, cancellationToken);
+    }
+
+    [HttpPost("connect")]
+    public Task<IActionResult> Connect([FromBody] object body, CancellationToken cancellationToken) =>
+        ProxyForSession(HttpMethod.Post, "/internal/v1/connect", body, cancellationToken);
+
     [HttpGet("rec-peer-tutor")]
     [HttpGet("recommended-peer-tutors")]
     [HttpGet("tutors/recommended")]
-    public IActionResult RecommendedPeerTutors() => StatusCode(StatusCodes.Status501NotImplemented, Error("connect_not_implemented", "Tutor recommendations remain pending until the /connect algorithm is approved."));
+    public Task<IActionResult> RecommendedPeerTutors(CancellationToken cancellationToken) =>
+        ConnectRecommendations(null, cancellationToken);
+
+    [HttpGet("rec-peer-tutee")]
+    [HttpGet("tutees/recommended")]
+    public Task<IActionResult> RecommendedPeerTutees(CancellationToken cancellationToken) =>
+        ConnectRecommendations(null, cancellationToken);
 
     [HttpGet("frontend/status")]
     public IActionResult Status() => Ok(new { status = "ready", service = "mentos-webend", configured = true });
@@ -190,7 +262,10 @@ public abstract class WebendController : ControllerBase
             Response.Cookies.Append(SessionCookie, sessionKey.GetString()!, HostCookieOptions.Create(Request, environment, TimeSpan.FromHours(8)));
             if (clearPending)
                 Response.Cookies.Delete(PendingCookie, HostCookieOptions.Create(Request, environment));
-            return Ok(new { authenticated = true, account = account.Clone() });
+            var passwordSetupRequired =
+                document.RootElement.TryGetProperty("passwordSetupRequired", out var setupValue)
+                && setupValue.ValueKind == JsonValueKind.True;
+            return Ok(new { authenticated = true, account = account.Clone(), passwordSetupRequired });
         }
         catch (JsonException)
         {
@@ -209,18 +284,36 @@ public abstract class WebendController : ControllerBase
                 || string.IsNullOrWhiteSpace(attemptId.GetString())
                 || !document.RootElement.TryGetProperty("expiresInSeconds", out var expires)
                 || !expires.TryGetInt32(out var expiresInSeconds)
-                || expiresInSeconds is <= 0 or > 600)
+                || expiresInSeconds is <= 0 or > 600
+                || !document.RootElement.TryGetProperty("codeLength", out var codeLengthValue)
+                || !codeLengthValue.TryGetInt32(out var codeLength)
+                || codeLength != 6)
                 return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid verification attempt."));
 
             Response.Cookies.Append(
                 PendingCookie,
                 attemptId.GetString()!,
                 HostCookieOptions.Create(Request, environment, TimeSpan.FromSeconds(expiresInSeconds)));
-            return Ok(new { verificationRequired = true, expiresInSeconds });
+            return Ok(new { verificationRequired = true, expiresInSeconds, codeLength });
         }
         catch (JsonException)
         {
             return StatusCode(StatusCodes.Status502BadGateway, Error("invalid_auth_response", "The authentication service returned an invalid verification attempt."));
+        }
+    }
+
+    private static bool IsPasswordRequired(DbservResponse response)
+    {
+        if ((int)response.StatusCode >= 400) return false;
+        try
+        {
+            using var document = JsonDocument.Parse(response.Content);
+            return document.RootElement.TryGetProperty("passwordRequired", out var value)
+                && value.ValueKind == JsonValueKind.True;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 
@@ -236,5 +329,6 @@ public abstract class WebendController : ControllerBase
     private static bool IsSchoolEmail(string? email) => email is not null && email.EndsWith(SchoolDomain, StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(email[..^SchoolDomain.Length], @"^[a-z]+\.[0-9]{6,}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static object Error(string code, string message) => new { error = new { code, message } };
     public sealed record LoginRequest(string? Email, bool TermsAccepted);
+    public sealed record StudentPasswordRequest(string? Email, string? Password, bool TermsAccepted = false);
     public sealed record AdminLoginRequest(string? Email, string? Password, string? MfaCode);
 }

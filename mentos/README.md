@@ -22,14 +22,16 @@ HOST tree after the Node-line archive was created.
 
 ```bash
 cp config.example.yaml config.yaml
-# Set HOST_SHARED_KEY in config.yaml to match DBSERV.
+cp .example.env .env
+# Set HOST_SHARED_KEY in .env to match server/.env.
 ./run
 ```
 
 The default listener is `http://127.0.0.1:8000`. Override it with
-`BIND_ADDRESS` and `PORT`, or set them in `config.yaml`. `DBSERV_URL` and
-`HOST_SHARED_KEY` are also read from that file. Blank or omitted values are
-ignored, and existing process environment values take precedence.
+`BIND_ADDRESS` and `PORT`, or set them in `config.yaml`. `DBSERV_URL` is read
+from YAML; `HOST_SHARED_KEY` is read only from `.env` or the process
+environment. Secret values in YAML are ignored, and process environment values
+take precedence.
 
 The browser routes are `/`, `/faqs`, `/contactsupport`, and `/pals`.
 `/pals` and `/pals/partial/{name}` require a validated DBSERV session. The
@@ -49,22 +51,27 @@ The API route contract remains under `/api/v1`:
 - `/api/v1/analytics/*`
 - `/api/v1/dashboard`
 - `/api/v1/schedule`
-- `/api/v1/rec-peer-tutor`
+- `/api/v1/connect/recommendations`
+- `/api/v1/rec-peer-tutor` and `/api/v1/rec-peer-tutee`
 
-Tutor recommendations remain deliberately unavailable until `/connect` and its
-matching algorithm are approved. The longer recommendation paths remain
-compatibility aliases for the canonical `/rec-peer-tutor` path.
+Matching recommendations are ranked with the developer-selected algorithm and
+returned without creating a connection. The legacy recommendation routes are
+compatibility aliases; see [`../server/API.md`](../server/API.md) for the full
+contract.
 
 ## Development login prototype
 
-The student login prototype is available only in a Debug build running with
-`ASPNETCORE_ENVIRONMENT=Development`. It accepts the fixed account
-`student.123456@cubao.sti.edu.ph`; the six-digit verification code is printed
-to the server console. Code delivery is not connected to AWS SES yet. Release
-builds and non-Development environments return an explicit unavailable
-response rather than issuing a session. The attempt ID stays in an HttpOnly
+The student login flow accepts school accounts matching the documented email
+policy in every environment. Accounts with an Identity password must enter
+their password before completing six-digit email verification. Accounts
+without a password verify their email first and can then optionally set a
+password or skip setup. DBSERV sends codes through AWS SES; the code is not
+printed or returned to the browser. The pending attempt ID stays in an HttpOnly
 cookie, and successful verification creates the DBSERV session and records
-terms acceptance.
+terms acceptance. Password-only sign-in is not supported.
+Student passwords require at least eight characters, including uppercase and
+lowercase letters, a number, and a punctuation mark or symbol (spaces do not
+count as symbols).
 
 ## Recovery
 

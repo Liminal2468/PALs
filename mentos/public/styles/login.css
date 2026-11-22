@@ -258,6 +258,46 @@ a {
     text-underline-offset: 3px;
 }
 
+.login-inline-action,
+.password-skip {
+    justify-self: center;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: var(--blue);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: center;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.verification-resend {
+    justify-self: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #a4262c;
+    cursor: not-allowed;
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.verification-resend:not(:disabled) {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.verification-resend:focus-visible,
+.login-inline-action:focus-visible,
+.password-skip:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
 .terms-acceptance {
     display: flex;
     align-items: flex-start;

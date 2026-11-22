@@ -55,7 +55,7 @@
             <label for="adminPassword">Password</label>
             <input class="school-email" id="adminPassword" name="password" type="password" autocomplete="current-password" required>
             <label for="adminMfaCode" id="adminMfaLabel" hidden>Authenticator code</label>
-            <input class="school-email" id="adminMfaCode" name="mfaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" minlength="6" maxlength="8" placeholder="123456" aria-describedby="adminMfaHint adminLoginStatus" hidden>
+            <input class="school-email" id="adminMfaCode" name="mfaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" minlength="6" maxlength="8" placeholder="Enter your 6-digit code" aria-describedby="adminMfaHint adminLoginStatus" hidden>
             <p class="email-hint" id="adminMfaHint" hidden>Enter the current code from Google Authenticator or another TOTP app.</p>
             <button class="login-submit" type="submit" disabled>Developer log in</button>
             <p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>

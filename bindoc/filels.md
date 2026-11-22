@@ -11,7 +11,9 @@ mentos/
 ├── Controllers/             HOST controllers
 ├── webend/                  frontend backend boundary (*.{category}.cs)
 ├── public/                  preserved browser interface only
-└── api/.env                 local ignored configuration; never commit
+├── .env                     private HOST_SHARED_KEY; never commit
+├── .example.env             safe local environment template
+└── config.yaml              ignored non-secret local configuration
 ```
 
 ### Mentos HOST route and frontend status
@@ -23,6 +25,7 @@ and `mentos/Controllers/WebendController.cs`:
 /api/v1/health
 /api/v1/auth/options
 /api/v1/auth/login
+/api/v1/verify
 /api/v1/auth/logout
 /api/v1/session
 /api/v1/me
@@ -34,9 +37,10 @@ and `mentos/Controllers/WebendController.cs`:
 ```
 
 The account/session implementation uses a DBSERV-backed opaque session cookie.
-Student login remains a school-email-and-terms provisioning compatibility
-facade; admin/developer login uses ASP.NET Identity. OAuth/OIDC, provider
-callbacks, signup, `/connect`, and tutor recommendations remain deferred.
+Student login verifies a TOTP code delivered through AWS SES before provisioning
+the account and creating a session; admin/developer login uses ASP.NET Identity.
+OAuth/OIDC, provider callbacks, signup, `/connect`, and tutor recommendations
+remain deferred.
 
 The public pages are served from `mentos/public/`. Login is connected to the
 HOST and `/pals.html` plus `/pages/*` are session-protected. Live hydration
@@ -53,13 +57,22 @@ server/
 ├── Program.cs               DBSERV startup and public-file hosting
 ├── Controllers/             DBSERV controllers
 ├── Data/                    parameterized PALs data-store boundary
-├── Identity/                ASP.NET Identity models, seed, and migrations
+├── Identity/                Identity, TOTP verification, pending attempts, and SES sender
+├── authentication/          copied C# TOTP tests and standalone SES sender
 ├── src/gen                  local HOST_SHARED_KEY generator
 ├── public/                  preserved developer interface
-├── config.yaml              local non-secret configuration; never commit
-├── .env                     DB_PASSWORD only; never commit
+├── config.yaml              ignored non-secret local configuration
+├── .env                     database and authentication secrets; never commit
 └── run                      .NET launcher
 ```
+
+Student verification uses `Identity/Hotp.cs`, `Totp.cs`, `Atomic.cs`,
+`TotpConfig.cs`, `PendingLoginStore.cs`, and `VerificationEmailSender.cs`.
+Configure `HOST_SHARED_KEY` in both applications' `.env` files and
+`SHARED_SECRET` in `server/.env`; set `SENDER_EMAIL` and non-secret settings
+in `server/config.yaml`.
+AWS credentials use the SDK default credential chain and must not be stored in
+YAML or source files.
 
 The DBSERV health routes are exposed as `/db/health`, `/acc/health`,
 `/sched/health`, `/fb/health`, `/adata/health`, `/connect/health`, and

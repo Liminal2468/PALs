@@ -26,6 +26,8 @@ builder.WebHost.UseUrls(
     $"http://{Environment.GetEnvironmentVariable("BIND_ADDRESS") ?? "127.0.0.1"}:{Environment.GetEnvironmentVariable("PORT") ?? "8432"}");
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TotpConfig.Load(builder.Configuration));
+builder.Services.AddSingleton<VerificationEmailSender>();
 var dataProtectionPath = Environment.GetEnvironmentVariable("DATA_PROTECTION_KEY_PATH") ?? Path.Combine("storage", "dataprotection");
 Directory.CreateDirectory(dataProtectionPath);
 builder.Services.AddDataProtection()
@@ -36,7 +38,7 @@ builder.Services.AddDbContext<PalIdentityDbContext>(options =>
 builder.Services.AddIdentity<PalIdentityUser, PalIdentityRole>(options =>
 {
     options.User.RequireUniqueEmail = true;
-    options.Password.RequiredLength = 12;
+    options.Password.RequiredLength = 8;
     options.Password.RequireDigit = true;
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
@@ -45,6 +47,7 @@ builder.Services.AddIdentity<PalIdentityUser, PalIdentityRole>(options =>
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
     .AddEntityFrameworkStores<PalIdentityDbContext>()
+    .AddPasswordValidator<PasswordSymbolValidator>()
     .AddDefaultTokenProviders();
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -58,6 +61,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<DeveloperIdentityStore>();
 builder.Services.AddScoped<MfaReplayStore>();
 builder.Services.AddScoped<PalsDataStore>();
+builder.Services.AddSingleton<MatchingAlgorithmRegistry>();
 builder.Services.AddSingleton<PendingLoginStore>();
 
 var app = builder.Build();
@@ -135,14 +139,19 @@ static void LoadDotEnv(string? path, ISet<string> processEnvironmentKeys)
         if (separator <= 0) continue;
         var key = value[..separator].Trim();
         var setting = value[(separator + 1)..].Trim().Trim('"', '\'');
-        // Keep one non-secret configuration source: server/config.yaml.
-        // The database password is the only value allowed in server/.env.
+        // Database and host authentication secrets are restricted to server/.env
+        // or explicit process environment values.
         if (string.IsNullOrWhiteSpace(key)
             || string.IsNullOrWhiteSpace(setting)
-            || !key.Equals("DB_PASSWORD", StringComparison.OrdinalIgnoreCase)
+            || !(key.Equals("DB_PASSWORD", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("HOST_SHARED_KEY", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("SHARED_SECRET", StringComparison.OrdinalIgnoreCase))
             || processEnvironmentKeys.Contains(key)) continue;
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+        {
             Environment.SetEnvironmentVariable(key, setting);
+            processEnvironmentKeys.Add(key);
+        }
     }
 }
 

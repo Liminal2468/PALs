@@ -1,4 +1,47 @@
- <!-- Top bar -->
-        <div class="topbar">
-            <div class="topbar-title">Peer-Assisted Learning System</div>
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Learning analytics</div>
+        <div class="topbar-sub">A private summary of your PALs activity</div>
+    </div>
+</div>
+
+<div class="sub-content">
+    <section class="home-section panel" aria-labelledby="analyticsPrivacyTitle">
+        <div class="section-header">
+            <div>
+                <p class="page-eyebrow">Your choice</p>
+                <h1 class="section-title" id="analyticsPrivacyTitle">Usage analytics consent</h1>
+                <p class="page-description">Optional analytics records page views to help evaluate PALs. It is not required to use the platform. Your activity summary is visible only to you.</p>
+            </div>
+            <button class="btn-primary" type="button" data-analytics-consent-button disabled>Checking consent…</button>
         </div>
+        <p class="form-status" data-analytics-consent-status role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="stats-row" aria-label="Your analytics summary">
+        <article class="stat">
+            <div class="stat-label">Tracked features</div>
+            <div class="stat-val" data-analytics-feature-count>—</div>
+        </article>
+        <article class="stat">
+            <div class="stat-label">Recorded events</div>
+            <div class="stat-val" data-analytics-event-count>—</div>
+        </article>
+        <article class="stat">
+            <div class="stat-label">Time recorded</div>
+            <div class="stat-val" data-analytics-duration>—</div>
+        </article>
+    </section>
+
+    <section class="home-section panel" aria-labelledby="analyticsBreakdownTitle">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title" id="analyticsBreakdownTitle">Activity by feature</h2>
+                <p class="topbar-sub">Only activity recorded while you have active consent is included.</p>
+            </div>
+        </div>
+        <div data-analytics-summary>
+            <p class="empty-state">Loading analytics…</p>
+        </div>
+    </section>
+</div>

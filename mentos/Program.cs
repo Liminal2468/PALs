@@ -3,6 +3,15 @@ using Microsoft.AspNetCore.Authentication;
 using Mentos.Host.Webend;
 using Mentos.Host.Configuration;
 
+var processEnvironmentKeys = Environment.GetEnvironmentVariables()
+    .Keys
+    .Cast<object>()
+    .Select(key => key.ToString())
+    .Where(key => !string.IsNullOrWhiteSpace(key)
+        && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+    .Cast<string>()
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+LoadDotEnv(YamlEnvironment.ResolvePath(".env"), processEnvironmentKeys);
 YamlEnvironment.Load("config.yaml");
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -59,3 +68,26 @@ app.MapControllers();
 app.MapFallbackToController("NotFoundPage", "Site");
 
 app.Run();
+
+static void LoadDotEnv(string? path, ISet<string> processEnvironmentKeys)
+{
+    if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+    foreach (var line in File.ReadLines(path))
+    {
+        var value = line.Trim();
+        if (value.Length == 0 || value.StartsWith('#')) continue;
+        var separator = value.IndexOf('=');
+        if (separator <= 0) continue;
+        var key = value[..separator].Trim();
+        var setting = value[(separator + 1)..].Trim().Trim('"', '\'');
+        if (!key.Equals("HOST_SHARED_KEY", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(setting)
+            || processEnvironmentKeys.Contains(key)
+            || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+        {
+            continue;
+        }
+
+        Environment.SetEnvironmentVariable(key, setting);
+    }
+}

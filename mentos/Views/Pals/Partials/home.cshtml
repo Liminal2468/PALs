@@ -1,7 +1,7 @@
 <div class="topbar">
     <div>
-        <div class="topbar-title">Welcome back, <span data-profile-name>J. Mike</span></div>
-        <div class="topbar-sub">Your learning dashboard · STI College Cubao SHS</div>
+        <div class="topbar-title">Welcome back, <span data-profile-name>Loading profile...</span></div>
+        <div class="topbar-sub">Your learning activity and next steps</div>
     </div>
     <div class="topbar-actions">
         <button class="btn-primary" type="button" data-navigate="tutors">Find a tutor</button>
@@ -12,23 +12,23 @@
     <section class="stats-row" aria-label="Your learning activity">
         <article class="stat">
             <div class="stat-label">Sessions this month</div>
-            <div class="stat-val" data-home-stat="sessions">7</div>
-            <div class="stat-delta">Keep up your momentum</div>
+            <div class="stat-val" data-home-stat="sessions">—</div>
+            <div class="stat-delta">Confirmed or completed this month</div>
         </article>
         <article class="stat">
             <div class="stat-label">Hours logged</div>
-            <div class="stat-val" data-home-stat="hours">6</div>
-            <div class="stat-delta">Your goal: 8 hours</div>
+            <div class="stat-val" data-home-stat="hours">—</div>
+            <div class="stat-delta">From completed sessions</div>
         </article>
         <article class="stat">
-            <div class="stat-label">Tutor connections</div>
-            <div class="stat-val" data-home-stat="tutors">3</div>
-            <div class="stat-delta">Based on your subjects</div>
+            <div class="stat-label">Peer connections</div>
+            <div class="stat-val" data-home-stat="tutors">—</div>
+            <div class="stat-delta">Peers from confirmed sessions</div>
         </article>
         <article class="stat">
-            <div class="stat-label">Learning streak</div>
-            <div class="stat-val">4 days</div>
-            <div class="stat-delta">One step at a time</div>
+            <div class="stat-label">Open learning requests</div>
+            <div class="stat-val" data-home-stat="requests">—</div>
+            <div class="stat-delta">Available for peer matching</div>
         </article>
     </section>
 
@@ -36,7 +36,7 @@
         <div class="section-header">
             <div>
                 <h2 class="section-title" id="matchesTitle">Recommended peer tutors</h2>
-                <p class="topbar-sub">Browse example matches by subject.</p>
+                <p class="topbar-sub">Ranked using your open learning requests.</p>
             </div>
             <button class="btn-ghost" type="button" data-navigate="tutors">Browse tutors</button>
         </div>
@@ -48,34 +48,7 @@
             <button class="chip" type="button" data-home-filter="research" aria-pressed="false">Research</button>
         </div>
         <div class="tutor-grid home-tutor-grid">
-            <article class="tutor-card home-tutor-card" data-home-tutor data-subjects="programming,math">
-                <div class="t-av blue">JB</div>
-                <div class="home-tutor-main">
-                    <div class="t-name">Janine Berdin</div>
-                    <div class="t-meta"><span class="stars" aria-label="Rated 4.9 out of 5">★★★★★</span> 4.9 <span><span class="avail-dot"></span>Available now</span></div>
-                    <div class="t-tags"><span class="tag blue">Computer/Web Programming 4</span><span class="tag blue">Mobile App Programming 2</span></div>
-                </div>
-                <div class="home-tutor-actions"><span class="mbadge high">99% match</span><button class="req-btn" type="button" data-request-tutor="Janine Berdin">Request session</button></div>
-            </article>
-            <article class="tutor-card home-tutor-card" data-home-tutor data-subjects="science,research">
-                <div class="t-av teal">JH</div>
-                <div class="home-tutor-main">
-                    <div class="t-name">John Michael Howell</div>
-                    <div class="t-meta"><span class="stars" aria-label="Rated 4.7 out of 5">★★★★★</span> 4.7 <span><span class="avail-dot"></span>Available today</span></div>
-                    <div class="t-tags"><span class="tag teal">Physics</span><span class="tag purple">Practical Research 1</span></div>
-                </div>
-                <div class="home-tutor-actions"><span class="mbadge med">96% match</span><button class="req-btn" type="button" data-request-tutor="John Michael Howell">Request session</button></div>
-            </article>
-            <article class="tutor-card home-tutor-card" data-home-tutor data-subjects="programming,math,science">
-                <div class="t-av purple">MP</div>
-                <div class="home-tutor-main">
-                    <div class="t-name">Minju Park</div>
-                    <div class="t-meta"><span class="stars" aria-label="Rated 4.5 out of 5">★★★★☆</span> 4.5 <span>Next: Wed, 3 PM</span></div>
-                    <div class="t-tags"><span class="tag blue">Mobile App Programming 2</span><span class="tag teal">Calculus</span></div>
-                </div>
-                <div class="home-tutor-actions"><span class="mbadge med">88% match</span><button class="req-btn" type="button" data-request-tutor="Minju Park">Request session</button></div>
-            </article>
-            <p class="empty-state" data-home-empty hidden>No tutor matches this subject yet. Try another subject or browse all tutors.</p>
+            <p class="empty-state" data-home-empty>Loading recommendations…</p>
         </div>
     </section>
 
@@ -83,13 +56,11 @@
         <div class="section-header">
             <div>
                 <h2 class="section-title" id="upcomingTitle">Upcoming sessions</h2>
-                <p class="topbar-sub">A sample schedule until your sessions are connected.</p>
+                <p class="topbar-sub">Requests and sessions involving your account.</p>
             </div>
             <button class="btn-ghost" type="button" data-navigate="sessions">View schedule</button>
         </div>
-        <div class="session-item"><span class="sess-dot" aria-hidden="true"></span><span class="sess-info">Self Improvement with Prince Alfred Mosante</span><time class="sess-time">Today, 4:00 PM</time></div>
-        <div class="session-item"><span class="sess-dot" aria-hidden="true"></span><span class="sess-info">Chemistry with John Michael Howell</span><time class="sess-time">Thu, 2:30 PM</time></div>
-        <div class="session-item"><span class="sess-dot" aria-hidden="true"></span><span class="sess-info">Mobile App Programming 2 with Minju Park</span><time class="sess-time">Wed, 3:00 PM</time></div>
+        <p class="empty-state">Loading your sessions…</p>
     </section>
 </div>
 
@@ -99,26 +70,12 @@
             <div><h2 id="requestDialogTitle">Request a tutoring session</h2><p data-request-tutor-label></p></div>
             <button class="icon-button" type="button" data-close-dialog aria-label="Close">&times;</button>
         </div>
-        <input type="hidden" name="tutorId" data-request-tutor-id>
-        <label>Subject
-            <select name="subject" required>
-                <option value="">Choose a subject</option>
-                <option>Computer/Web Programming 4</option>
-                <option>Mobile App Programming 2</option>
-                <option>Calculus</option>
-                <option>Physics</option>
-                <option>Chemistry</option>
-                <option>Practical Research 1</option>
-                <option>Other</option>
-            </select>
-        </label>
-        <label>Preferred date and time
-            <input name="preferredTime" type="datetime-local" required>
-        </label>
-        <label>Note for the tutor <span class="field-optional">(optional)</span>
-            <textarea name="note" rows="3" maxlength="500" placeholder="What would you like help with?"></textarea>
-        </label>
+        <input type="hidden" name="requestId" data-request-id>
+        <input type="hidden" name="candidateUserId" data-candidate-user-id>
+        <label>Subject<input name="subject" data-request-subject readonly></label>
+        <label>Session starts<input name="scheduledStart" type="datetime-local" step="900" required></label>
+        <label>Session ends<input name="scheduledEnd" type="datetime-local" step="900" required></label>
         <p class="form-status" data-request-status role="status" aria-live="polite"></p>
-        <div class="form-actions"><button class="btn-ghost" type="button" data-close-dialog>Cancel</button><button class="btn-primary" type="submit">Send request</button></div>
+        <div class="form-actions"><button class="btn-ghost" type="button" data-close-dialog>Cancel</button><button class="btn-primary" type="submit">Send session request</button></div>
     </form>
 </dialog>

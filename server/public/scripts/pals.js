@@ -104,15 +104,68 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const result = await response.json();
             const algorithms = Array.isArray(result?.data) ? result.data : [];
+            if (!algorithms.length) throw new Error('No matching algorithms are available.');
+            let activeAlgorithmId = result.activeAlgorithmId || algorithms.find(item => item.isActive)?.id;
+
+            const form = document.createElement('form');
+            form.className = 'app-form';
+            const label = document.createElement('label');
+            label.textContent = 'Active matching algorithm';
+            const select = document.createElement('select');
+            select.name = 'algorithmId';
+            select.required = true;
+            algorithms.forEach(algorithm => {
+                const option = document.createElement('option');
+                option.value = algorithm.id;
+                option.textContent = `${algorithm.name}${algorithm.isDefault ? ' (default)' : ''}`;
+                option.title = algorithm.description || algorithm.name;
+                select.append(option);
+            });
+            select.value = activeAlgorithmId || '';
+            label.append(select);
+
+            const status = document.createElement('p');
+            status.className = 'form-status';
+            status.setAttribute('role', 'status');
+            status.setAttribute('aria-live', 'polite');
+            status.textContent = `${algorithms.length} algorithm(s) available.`;
+
+            const submit = document.createElement('button');
+            submit.type = 'submit';
+            submit.className = 'btn-primary';
+            submit.textContent = 'Apply algorithm';
+            submit.disabled = !select.value;
+            select.addEventListener('change', () => { submit.disabled = select.value === activeAlgorithmId; });
+            form.append(label, status, submit);
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                submit.disabled = true;
+                status.classList.remove('form-status-error');
+                status.textContent = 'Saving algorithm selection...';
+                try {
+                    const update = await fetch('/dev/system/matching-algorithms/active', {
+                        method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ algorithmId: select.value })
+                    });
+                    const body = await update.json().catch(() => ({}));
+                    if (!update.ok) throw new Error(body?.error?.message || `HTTP ${update.status}`);
+                    activeAlgorithmId = select.value;
+                    status.textContent = `Active algorithm: ${algorithms.find(item => item.id === select.value)?.name || select.value}.`;
+                    submit.disabled = true;
+                } catch (error) {
+                    status.textContent = `Unable to save algorithm selection: ${error.message}`;
+                    status.classList.add('form-status-error');
+                    submit.disabled = false;
+                }
+            });
+
             target.replaceChildren();
-            const message = document.createElement('p');
-            message.className = 'topbar-sub';
-            message.textContent = algorithms.length
-                ? `${algorithms.length} algorithm(s) configured.`
-                : 'No matching algorithms configured. This list is intentionally empty until /connect is implemented.';
-            target.append(message);
-        } catch {
-            target.textContent = 'Matching algorithm configuration could not be loaded.';
+            target.append(form);
+        } catch (error) {
+            target.textContent = `Matching algorithm configuration could not be loaded: ${error.message}`;
+            console.error('Unable to load matching algorithm configuration:', error);
         }
     }
 
@@ -874,7 +927,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             email.setCustomValidity('');
-            status.textContent = 'The support form is not connected to a ticketing or email service yet, so your message has not been sent. Please contact the designated PALs support team through your school's approved channel.';
+            status.textContent = "The support form is not connected to a ticketing or email service yet, so your message has not been sent. Please contact the designated PALs support team through your school's approved channel.";
             return;
         }
 

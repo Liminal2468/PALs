@@ -6,6 +6,7 @@
     <RootNamespace>Palsys.Server</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
@@ -14,5 +15,16 @@
     <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="MySqlConnector" Version="3.0.0" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="authentication/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="public/**/*"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Identity/email/email.html"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Palsys.Server.Data;
 using Palsys.Server.Identity;
 
 namespace Palsys.Server.Controllers;
@@ -12,15 +13,18 @@ public sealed class DeveloperController : ControllerBase
     private readonly DeveloperIdentityStore identityStore;
     private readonly SignInManager<PalIdentityUser> signInManager;
     private readonly UserManager<PalIdentityUser> userManager;
+    private readonly MatchingAlgorithmRegistry matchingAlgorithms;
 
     public DeveloperController(
         DeveloperIdentityStore identityStore,
         SignInManager<PalIdentityUser> signInManager,
-        UserManager<PalIdentityUser> userManager)
+        UserManager<PalIdentityUser> userManager,
+        MatchingAlgorithmRegistry matchingAlgorithms)
     {
         this.identityStore = identityStore;
         this.signInManager = signInManager;
         this.userManager = userManager;
+        this.matchingAlgorithms = matchingAlgorithms;
     }
 
     [HttpPost("login")]
@@ -184,7 +188,29 @@ public sealed class DeveloperController : ControllerBase
     public IActionResult MatchingAlgorithms()
     {
         if (!CurrentIdentity(out _, out _)) return Unauthorized(new { error = new { code = "authentication_required", message = "Developer sign-in is required." } });
-        return Ok(new { data = Array.Empty<object>() });
+        var activeId = matchingAlgorithms.ActiveAlgorithm.Id;
+        return Ok(new
+        {
+            data = matchingAlgorithms.Algorithms.Select(algorithm => new
+            {
+                id = algorithm.Id,
+                name = algorithm.Name,
+                description = algorithm.Description,
+                isDefault = algorithm.IsDefault,
+                isActive = algorithm.Id == activeId,
+            }),
+            activeAlgorithmId = activeId,
+        });
+    }
+
+    [HttpPut("system/matching-algorithms/active")]
+    public IActionResult SetMatchingAlgorithm([FromBody] MatchingAlgorithmSelectionRequest? request)
+    {
+        if (!CurrentIdentity(out _, out _)) return Unauthorized(new { error = new { code = "authentication_required", message = "Developer sign-in is required." } });
+        if (request is null || !matchingAlgorithms.TrySetActive(request.AlgorithmId))
+            return BadRequest(new { error = new { code = "invalid_matching_algorithm", message = "Select an available matching algorithm." } });
+
+        return Ok(new { data = new { activeAlgorithmId = matchingAlgorithms.ActiveAlgorithm.Id } });
     }
 
     private bool CurrentIdentity(out string email, out string role)
@@ -207,4 +233,5 @@ public sealed class DeveloperController : ControllerBase
 
     public sealed record LoginRequest(string? Email, string? Password);
     public sealed record MfaCodeRequest(string? Code);
+    public sealed record MatchingAlgorithmSelectionRequest(string? AlgorithmId);
 }

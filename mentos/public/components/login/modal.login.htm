@@ -23,6 +23,16 @@
         <button class="login-submit" type="submit" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill="#f25022" d="M2 2h9.5v9.5H2z"/><path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z"/><path fill="#00a4ef" d="M2 12.5h9.5V22H2z"/><path fill="#ffb900" d="M12.5 12.5H22V22h-9.5z"/></svg><span>Continue with school email</span></button>
         <p class="login-status" id="userLoginStatus" role="status" aria-live="polite"></p>
     </form>
+    <form class="login-form" id="studentPasswordLoginForm" novalidate hidden>
+        <button class="login-back" type="button">← Login options</button>
+        <label for="studentPasswordEmail">School email</label>
+        <input class="school-email" id="studentPasswordEmail" name="email" type="email" autocomplete="username" placeholder="name@cubao.sti.edu.ph" aria-describedby="studentPasswordEmailError studentPasswordError" required>
+        <p class="email-error" id="studentPasswordEmailError" aria-live="polite"></p>
+        <label for="studentPassword">Password</label>
+        <input class="school-email" id="studentPassword" name="password" type="password" autocomplete="current-password" required>
+        <p class="email-error" id="studentPasswordError" aria-live="polite"></p>
+        <button class="login-submit" id="studentPasswordSubmit" type="submit">Continue to verification</button>
+    </form>
     <form class="login-form" id="adminLoginForm" novalidate hidden>
         <button class="login-back" type="button">← Login options</button>
         <label for="adminEmail">Admin school email</label>
@@ -34,5 +44,21 @@
         <input class="school-email" id="adminMfaCode" name="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" minlength="6" maxlength="8" placeholder="123456" aria-describedby="adminMfaHint adminLoginStatus" hidden>
         <p class="email-hint" id="adminMfaHint" hidden>Enter the current code from Google Authenticator or another TOTP app.</p>
         <button class="login-submit" type="submit" disabled>Admin log in</button><p class="login-status" id="adminLoginStatus" role="status" aria-live="polite"></p>
+    </form>
+</dialog>
+
+<dialog class="login-dialog" id="passwordSetupDialog" aria-labelledby="passwordSetupTitle" aria-describedby="passwordSetupDescription">
+    <div class="dialog-header">
+        <div><h2 id="passwordSetupTitle">Set a password</h2><p id="passwordSetupDescription">Add a password for faster sign-in next time. You can skip this and continue to PALs.</p></div>
+    </div>
+    <form class="login-form" id="passwordSetupForm" novalidate>
+        <label for="newStudentPassword">New password</label>
+        <input class="school-email" id="newStudentPassword" name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <p class="email-hint">Use at least 8 characters with uppercase, lowercase, a number, and a symbol.</p>
+        <label for="confirmStudentPassword">Confirm password</label>
+        <input class="school-email" id="confirmStudentPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+        <p class="email-error" id="passwordSetupError" aria-live="polite"></p>
+        <button class="login-submit" type="submit">Set password and continue</button>
+        <button class="password-skip" id="skipPasswordSetup" type="button">Skip for now and continue to PALs</button>
     </form>
 </dialog>

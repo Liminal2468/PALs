@@ -7,6 +7,14 @@ namespace Palsys.Server.Data;
 public sealed record PalsUser(long Id, string Email, string DisplayName, string Role, string Status);
 public sealed record PalsAccountSummary(long Id, string Email, string DisplayName, string Status, IReadOnlyList<string> Roles);
 
+public enum SessionStatusUpdateResult
+{
+    Updated,
+    NotFound,
+    InvalidTransition,
+    InviteeResponseRequired,
+}
+
 public sealed class PalsDataStore
 {
     private readonly string connectionString;
@@ -214,6 +222,334 @@ public sealed class PalsDataStore
                     ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)
                     """, cancellationToken, ("@user", userId), ("@name", subject));
             }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<long> CreateLearningRequestAsync(
+        long userId,
+        long subjectId,
+        int? currentProficiency,
+        string? requestedHelp,
+        string preferredFormat,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO learning_requests (tutee_user_id, subject_id, current_proficiency, requested_help, preferred_format)
+            VALUES (@user, @subject, @proficiency, @help, @format)
+            """, cancellationToken,
+            ("@user", userId),
+            ("@subject", subjectId),
+            ("@proficiency", currentProficiency),
+            ("@help", requestedHelp),
+            ("@format", preferredFormat));
+        var requestId = Convert.ToInt64(await ScalarTransactionAsync(
+            connection, transaction, "SELECT LAST_INSERT_ID()", cancellationToken));
+        await transaction.CommitAsync(cancellationToken);
+        return requestId;
+    }
+
+    public async Task<long> CreateConnectionSessionAsync(
+        long learningRequestId,
+        long tuteeUserId,
+        long tutorUserId,
+        long requesterUserId,
+        long subjectId,
+        string algorithmVersion,
+        double matchScore,
+        IReadOnlyDictionary<string, double?> scoreComponents,
+        string explanation,
+        DateTime scheduledStartUtc,
+        DateTime scheduledEndUtc,
+        CancellationToken cancellationToken)
+    {
+        if (requesterUserId != tuteeUserId && requesterUserId != tutorUserId)
+            throw new ConnectionRequestConflictException("The requester is not part of this match.");
+
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var requestSubjectId = await ScalarTransactionAsync(connection, transaction, """
+            SELECT subject_id
+            FROM learning_requests
+            WHERE id = @request AND tutee_user_id = @tutee AND request_status = 'open'
+            FOR UPDATE
+            """, cancellationToken,
+            ("@request", learningRequestId), ("@tutee", tuteeUserId));
+        if (requestSubjectId is null
+            || Convert.ToInt64(requestSubjectId, System.Globalization.CultureInfo.InvariantCulture) != subjectId)
+            throw new ConnectionRequestConflictException("The learning request is no longer open for this match.");
+
+        var eligibleTutor = await ScalarTransactionAsync(connection, transaction, """
+            SELECT COUNT(*)
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.id = ur.role_id AND r.role_key = 'tutor'
+            JOIN tutor_subjects ts ON ts.tutor_user_id = u.id AND ts.subject_id = @subject
+            WHERE u.id = @tutor AND u.account_status = 'active'
+              AND ts.verification_status <> 'rejected'
+            """, cancellationToken,
+            ("@subject", subjectId), ("@tutor", tutorUserId));
+        if (Convert.ToInt32(eligibleTutor, System.Globalization.CultureInfo.InvariantCulture) == 0)
+            throw new ConnectionRequestConflictException("The tutor is no longer active for this subject.");
+
+        var pendingSession = await ScalarTransactionAsync(connection, transaction, """
+            SELECT ss.id
+            FROM match_recommendations mr
+            JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+            JOIN study_sessions ss ON ss.id = smr.study_session_id
+            WHERE mr.learning_request_id = @request
+              AND mr.tutor_user_id = @tutor
+              AND ss.session_status IN ('requested', 'confirmed')
+            LIMIT 1
+            FOR UPDATE
+            """, cancellationToken,
+            ("@request", learningRequestId), ("@tutor", tutorUserId));
+        if (pendingSession is not null)
+            throw new ConnectionRequestConflictException("A session request for this match is already active.");
+
+        var componentsJson = JsonSerializer.Serialize(scoreComponents);
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO match_recommendations
+                (learning_request_id, tutor_user_id, algorithm_version, match_score, score_components, explanation)
+            VALUES (@request, @tutor, @algorithm, @score, @components, @explanation)
+            ON DUPLICATE KEY UPDATE
+                algorithm_version = VALUES(algorithm_version),
+                match_score = VALUES(match_score),
+                score_components = VALUES(score_components),
+                explanation = VALUES(explanation),
+                recommendation_status = IF(
+                    recommendation_status IN ('declined', 'expired', 'withdrawn'),
+                    'recommended',
+                    recommendation_status)
+            """, cancellationToken,
+            ("@request", learningRequestId),
+            ("@tutor", tutorUserId),
+            ("@algorithm", algorithmVersion),
+            ("@score", matchScore),
+            ("@components", componentsJson),
+            ("@explanation", explanation));
+        var recommendationId = Convert.ToInt64(await ScalarTransactionAsync(connection, transaction, """
+            SELECT id FROM match_recommendations
+            WHERE learning_request_id = @request AND tutor_user_id = @tutor
+            FOR UPDATE
+            """, cancellationToken,
+            ("@request", learningRequestId), ("@tutor", tutorUserId)));
+
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO study_sessions
+                (session_type, subject_id, created_by_user_id, scheduled_start_utc, scheduled_end_utc, session_status)
+            VALUES ('one_to_one', @subject, @requester, @start, @end, 'requested')
+            """, cancellationToken,
+            ("@subject", subjectId),
+            ("@requester", requesterUserId),
+            ("@start", scheduledStartUtc),
+            ("@end", scheduledEndUtc));
+        var sessionId = Convert.ToInt64(await ScalarTransactionAsync(
+            connection, transaction, "SELECT LAST_INSERT_ID()", cancellationToken));
+
+        var tuteeStatus = requesterUserId == tuteeUserId ? "accepted" : "invited";
+        var tutorStatus = requesterUserId == tutorUserId ? "accepted" : "invited";
+        DateTime? tuteeJoinedAt = tuteeStatus == "accepted" ? DateTime.UtcNow : null;
+        DateTime? tutorJoinedAt = tutorStatus == "accepted" ? DateTime.UtcNow : null;
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO session_participants
+                (study_session_id, user_id, participant_role, participation_status, joined_at)
+            VALUES
+                (@session, @tutee, 'tutee', @tutee_status, @tutee_joined),
+                (@session, @tutor, 'tutor', @tutor_status, @tutor_joined)
+            """, cancellationToken,
+            ("@session", sessionId),
+            ("@tutee", tuteeUserId),
+            ("@tutee_status", tuteeStatus),
+            ("@tutee_joined", tuteeJoinedAt),
+            ("@tutor", tutorUserId),
+            ("@tutor_status", tutorStatus),
+            ("@tutor_joined", tutorJoinedAt));
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO session_match_recommendations (study_session_id, match_recommendation_id)
+            VALUES (@session, @recommendation)
+            """, cancellationToken,
+            ("@session", sessionId), ("@recommendation", recommendationId));
+
+        await transaction.CommitAsync(cancellationToken);
+        return sessionId;
+    }
+
+    public async Task<SessionStatusUpdateResult> UpdateConnectionSessionAsync(
+        long sessionId,
+        long actorUserId,
+        string nextStatus,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        string previousStatus;
+        long creatorUserId;
+        string participantStatus;
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = """
+                SELECT ss.session_status, ss.created_by_user_id, mine.participation_status
+                FROM study_sessions ss
+                JOIN session_participants mine ON mine.study_session_id = ss.id AND mine.user_id = @actor
+                WHERE ss.id = @session
+                FOR UPDATE
+                """;
+            AddParameters(command, [("@actor", actorUserId), ("@session", sessionId)]);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                return SessionStatusUpdateResult.NotFound;
+            previousStatus = Convert.ToString(reader["session_status"]) ?? "";
+            creatorUserId = Convert.ToInt64(reader["created_by_user_id"], System.Globalization.CultureInfo.InvariantCulture);
+            participantStatus = Convert.ToString(reader["participation_status"]) ?? "";
+        }
+
+        var validTransition = previousStatus switch
+        {
+            "requested" => nextStatus is "confirmed" or "cancelled",
+            "confirmed" => nextStatus is "completed" or "cancelled" or "no_show",
+            _ => false,
+        };
+        if (!validTransition)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return SessionStatusUpdateResult.InvalidTransition;
+        }
+        if (previousStatus == "requested"
+            && nextStatus == "confirmed"
+            && (actorUserId == creatorUserId || participantStatus != "invited"))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return SessionStatusUpdateResult.InviteeResponseRequired;
+        }
+
+        var changed = await ExecuteTransactionAsync(connection, transaction, """
+            UPDATE study_sessions
+            SET session_status = @status
+            WHERE id = @session AND session_status = @previous
+            """, cancellationToken,
+            ("@status", nextStatus), ("@session", sessionId), ("@previous", previousStatus));
+        if (changed == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return SessionStatusUpdateResult.InvalidTransition;
+        }
+
+        if (nextStatus == "confirmed")
+        {
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE session_participants
+                SET participation_status = 'accepted', joined_at = UTC_TIMESTAMP(3)
+                WHERE study_session_id = @session AND user_id = @actor
+                """, cancellationToken, ("@session", sessionId), ("@actor", actorUserId));
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE match_recommendations mr
+                JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+                SET mr.recommendation_status = 'accepted'
+                WHERE smr.study_session_id = @session
+                """, cancellationToken, ("@session", sessionId));
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE learning_requests lr
+                JOIN match_recommendations mr ON mr.learning_request_id = lr.id
+                JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+                SET lr.request_status = 'matched'
+                WHERE smr.study_session_id = @session AND lr.request_status = 'open'
+                """, cancellationToken, ("@session", sessionId));
+        }
+        else if (nextStatus == "cancelled")
+        {
+            var nextParticipantStatus = previousStatus == "requested" && actorUserId != creatorUserId
+                ? "declined"
+                : "removed";
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE session_participants
+                SET participation_status = @participant_status
+                WHERE study_session_id = @session AND user_id = @actor
+                """, cancellationToken,
+                ("@participant_status", nextParticipantStatus), ("@session", sessionId), ("@actor", actorUserId));
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE match_recommendations mr
+                JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+                SET mr.recommendation_status = @recommendation_status
+                WHERE smr.study_session_id = @session
+                """, cancellationToken,
+                ("@recommendation_status", previousStatus == "confirmed" || actorUserId == creatorUserId ? "withdrawn" : "declined"),
+                ("@session", sessionId));
+            if (previousStatus == "confirmed")
+            {
+                await ExecuteTransactionAsync(connection, transaction, """
+                    UPDATE learning_requests lr
+                    JOIN match_recommendations mr ON mr.learning_request_id = lr.id
+                    JOIN session_match_recommendations smr ON smr.match_recommendation_id = mr.id
+                    SET lr.request_status = 'open'
+                    WHERE smr.study_session_id = @session AND lr.request_status = 'matched'
+                    """, cancellationToken, ("@session", sessionId));
+            }
+        }
+
+        await ExecuteTransactionAsync(connection, transaction, """
+            INSERT INTO session_audits (actor_user_id, session_id, previous_status, next_status)
+            VALUES (@actor, @session, @previous, @next)
+            """, cancellationToken,
+            ("@actor", actorUserId), ("@session", sessionId), ("@previous", previousStatus), ("@next", nextStatus));
+        await transaction.CommitAsync(cancellationToken);
+        return SessionStatusUpdateResult.Updated;
+    }
+
+    public async Task SetAnalyticsConsentAsync(
+        long userId,
+        string consentVersion,
+        bool consented,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await ScalarTransactionAsync(connection, transaction,
+            "SELECT id FROM users WHERE id = @user FOR UPDATE", cancellationToken, ("@user", userId));
+
+        if (consented)
+        {
+            var activeConsent = Convert.ToInt32(await ScalarTransactionAsync(connection, transaction, """
+                SELECT COUNT(*) FROM research_consents
+                WHERE user_id = @user AND consent_type = 'phase2_usage_analytics'
+                  AND withdrawn_at IS NULL
+                """, cancellationToken, ("@user", userId))) > 0;
+            if (!activeConsent)
+            {
+                await ExecuteTransactionAsync(connection, transaction, """
+                    INSERT INTO research_consents (user_id, consent_type, consent_version)
+                    VALUES (@user, 'phase2_usage_analytics', @version)
+                    """, cancellationToken, ("@user", userId), ("@version", consentVersion));
+            }
+            await ExecuteTransactionAsync(connection, transaction, """
+                INSERT INTO research_participants (user_id, participant_key)
+                VALUES (@user, UUID())
+                ON DUPLICATE KEY UPDATE withdrawn_at = NULL
+                """, cancellationToken, ("@user", userId));
+        }
+        else
+        {
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE research_consents
+                SET withdrawn_at = UTC_TIMESTAMP(3)
+                WHERE user_id = @user AND consent_type = 'phase2_usage_analytics'
+                  AND withdrawn_at IS NULL
+                """, cancellationToken, ("@user", userId));
+            await ExecuteTransactionAsync(connection, transaction, """
+                UPDATE research_participants
+                SET withdrawn_at = UTC_TIMESTAMP(3)
+                WHERE user_id = @user AND withdrawn_at IS NULL
+                """, cancellationToken, ("@user", userId));
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -483,4 +819,9 @@ public sealed class PalsDataStore
 public sealed class ProfileRequirementsException : InvalidOperationException
 {
     public ProfileRequirementsException(string message) : base(message) { }
+}
+
+public sealed class ConnectionRequestConflictException : InvalidOperationException
+{
+    public ConnectionRequestConflictException(string message) : base(message) { }
 }

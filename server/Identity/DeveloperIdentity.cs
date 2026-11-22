@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 
 namespace Palsys.Server.Identity;
@@ -61,6 +62,77 @@ public sealed class DeveloperIdentityStore
 
     public async Task<PalIdentityUser?> FindAsync(string email) => await users.FindByEmailAsync(email.Trim());
 
+    public async Task<bool> HasStudentPasswordAsync(long palUserId)
+    {
+        var user = await users.Users.SingleOrDefaultAsync(account => account.PalUserId == palUserId);
+        return user is not null
+            && !await HasPrivilegedRoleAsync(user)
+            && await users.HasPasswordAsync(user);
+    }
+
+    public async Task<IdentityResult> SetStudentPasswordAsync(long palUserId, string email, string password)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await users.FindByEmailAsync(normalizedEmail);
+        if (user is not null)
+        {
+            if ((user.PalUserId is not null && user.PalUserId != palUserId)
+                || await HasPrivilegedRoleAsync(user)
+                || await users.HasPasswordAsync(user))
+            {
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = "password_already_configured",
+                    Description = "A password cannot be set for this account.",
+                });
+            }
+
+            user.PalUserId = palUserId;
+            user.EmailConfirmed = true;
+            user.LockoutEnabled = true;
+            var linked = await users.UpdateAsync(user);
+            if (!linked.Succeeded) return linked;
+            return await users.AddPasswordAsync(user, password);
+        }
+
+        var created = new PalIdentityUser
+        {
+            UserName = normalizedEmail,
+            Email = normalizedEmail,
+            EmailConfirmed = true,
+            LockoutEnabled = true,
+            PalUserId = palUserId,
+        };
+        return await users.CreateAsync(created, password);
+    }
+
+    public async Task<PalIdentityUser?> AuthenticateStudentAsync(
+        long palUserId,
+        string email,
+        string password)
+    {
+        if (string.IsNullOrWhiteSpace(password)) return null;
+        var user = await users.FindByEmailAsync(email.Trim());
+        if (user is null
+            || user.PalUserId != palUserId
+            || !await users.IsEmailConfirmedAsync(user)
+            || await users.IsLockedOutAsync(user)
+            || await HasPrivilegedRoleAsync(user))
+        {
+            return null;
+        }
+
+        if (!await users.CheckPasswordAsync(user, password))
+        {
+            if (user.LockoutEnabled)
+                await users.AccessFailedAsync(user);
+            return null;
+        }
+
+        await users.ResetAccessFailedCountAsync(user);
+        return user;
+    }
+
     public bool RequiresMfa(DeveloperCredential credential) =>
         requireMfaForPrivileged
         && credential.Role is "admin" or "developer";
@@ -101,5 +173,12 @@ public sealed class DeveloperIdentityStore
         command.Parameters.AddWithValue("@id", palUserId.Value);
         var status = await command.ExecuteScalarAsync(cancellationToken);
         return status is string value && value.Equals("active", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<bool> HasPrivilegedRoleAsync(PalIdentityUser user)
+    {
+        var userRoles = await users.GetRolesAsync(user);
+        return userRoles.Contains("admin", StringComparer.Ordinal)
+            || userRoles.Contains("developer", StringComparer.Ordinal);
     }
 }

@@ -1,9 +1,13 @@
-As of the moment this is the current progress on the latest updated build with the new requested back end. Some parts requires further discussion to with the leader and group in order to proceed, such as the `/connect` endpoint as this will require an algorithm. Further assesment of the research provides ambigous algorithms as it introduce multiple algorithms, so i'll ask if i would integrate all or integrate one 
+
+
+# BUild 4.0+
+
+This document records the current matching design and API progress. The matching endpoint uses algorithm #1 by default, with algorithm #2 available as a developer-selectable alternative.
 
 **Current project status:**
 
 > [!NOTE]
-> This is a rechecked of the current controllers, backend, and frontend as of 2026-11-18. Both .NET projects build successfully with zero warnings/errors. 
+> Rechecked against the current controllers, backend, and frontend as of 2026-11-22. Server and Mentos Release builds succeed, all ten server tests pass, and the active login JavaScript passes syntax checks. DBSERV and Mentos are deployed and healthy on apmain and pals. The public landing page and login dialog were browser-smoke-tested after fixing a stale cached login-script URL; no database-backed browser end-to-end test was run for this review.
 
 ## Corrected API status
 
@@ -11,66 +15,93 @@ As of the moment this is the current progress on the latest updated build with t
 | ----------------------------------------- | --------------------------------------------------------------------------- |
 | `GET /api/v1/health`                      | Implemented                                                                 |
 | `GET /api/v1/auth/options`                | Implemented                                                                 |
-| `POST /api/v1/auth/login`                 | Implemented; school-email provisioning, not OAuth/password login            |
+| `POST /api/v1/auth/login`                 | Implemented; directs existing password accounts to password entry, otherwise starts school-email verification |
+| `POST /api/v1/auth/resend`                | Implemented; replaces the pending attempt after successfully resending a code |
+| `POST /api/v1/verify`                     | Implemented; verifies the six-digit code bound to the HttpOnly pending-attempt cookie |
+| `POST /api/v1/auth/password`              | Implemented; optional password setup after verified email sign-in            |
+| `POST /api/v1/auth/password/login`        | Implemented; verifies password then starts required email verification       |
 | `POST /api/v1/auth/logout`                | Implemented; revokes DBSERV session                                         |
 | `GET /api/v1/session`                     | Implemented; persisted through DBSERV `web_sessions`, not HOST memory       |
 | `DELETE /api/v1/session`                  | Implemented                                                                 |
 | `POST /api/v1/auth/admin/login`           | Implemented; ASP.NET Identity-backed, requires schema v5 and seeded account |
-| `GET/PATCH /api/v1/me`                    | Implemented through DBSERV; profile fields remain partial                   |
+| `GET/PATCH /api/v1/me`                    | Implemented through DBSERV; returns profile name, role, grade, section, and bio |
 | `GET /api/v1/users`                       | Implemented; admin/developer restricted                                     |
-| `GET /api/v1/pages`                       | Implemented as a static page catalog, not full page management              |
+| `GET /api/v1/pages`                       | Implemented with database-backed page metadata and role filtering            |
 | `GET /api/v1/tutors`                      | Implemented                                                                 |
 | `GET /api/v1/tutees`                      | Implemented                                                                 |
 | `GET/POST /api/v1/learning-requests`      | Implemented                                                                 |
-| `GET/POST/PATCH /api/v1/sessions`         | Implemented                                                                 |
+| `GET/POST/PATCH /api/v1/sessions`         | Implemented; POST aliases the validated connection flow, and invitees confirm requests |
 | `GET/POST/PATCH/DELETE /api/v1/resources` | Implemented                                                                 |
 | `GET/POST /api/v1/feedback`               | Implemented                                                                 |
 | `POST /api/v1/feedback/{id}/votes`        | Implemented                                                                 |
 | `POST /api/v1/support`                    | Implemented                                                                 |
 | `POST /api/v1/analytics/events`           | Implemented with consent check                                              |
-| `POST /api/v1/analytics/consent`          | Implemented                                                                 |
-| `GET /api/v1/analytics/summary`           | Implemented                                                                 |
+| `GET/POST /api/v1/analytics/consent`      | Implemented; status, grant, and withdrawal                                 |
+| `GET /api/v1/analytics/summary`           | Implemented; current-user data is scoped to active consent                  |
 | `GET/POST/PATCH/DELETE /api/v1/schedule`  | Implemented; requires schema v7                                             |
 | `GET /api/v1/dashboard`                   | Implemented                                                                 |
 | `GET /api/v1/frontend/status`             | Implemented                                                                 |
-| `GET /api/v1/rec-peer-tutor`              | Not implemented                                                             |
-| `GET /api/v1/recommended-peer-tutors`     | Not implemented alias                                                       |
-| `GET /api/v1/tutors/recommended`          | Not implemented alias                                                       |
+| `GET /api/v1/connect/recommendations`     | Implemented; role-aware, ranked, non-persistent recommendations              |
+| `POST /api/v1/connect`                    | Implemented; revalidates a match and creates a scheduled pending session     |
+| `GET /api/v1/rec-peer-tutor`              | Implemented compatibility alias                                              |
+| `GET /api/v1/rec-peer-tutee`              | Implemented compatibility alias                                              |
 | Provider start/callback routes            | Not implemented                                                             |
 | Signup route                              | Not implemented                                                             |
 
+Email verification uses the raw HTML template at
+[`server/Identity/email/email.html`](server/Identity/email/email.html), with
+only `{{ verification_code }}` replaced. The template is included in the DBSERV
+publish output. The resend control starts a new verification attempt after its
+30-second countdown. Accounts with passwords require password then email-code
+verification; accounts without passwords start with email verification and may
+set a password afterward or skip to `/pals`.
+Identity passwords require at least eight characters, with uppercase and
+lowercase letters, a digit, and a punctuation mark or symbol; whitespace alone
+does not satisfy the symbol requirement.
+
+## Matching implementation and query
+
+The default is **#1 Weighted multi-criteria scoring**. Its transparent prototype baseline is:
+
+- Require an exact subject match, an active tutee request, and an active tutor. Group-only requests and tutors marked `rejected` are excluded.
+- When a tutee proficiency baseline exists, only tutors with a higher subject proficiency are candidates. The proficiency-gap score is 100 for a one-level gap, 75 for two levels, 50 for three, and 25 for four.
+- Score available profile criteria with proficiency gap at 70%, same strand at 20%, and tutor grade at least the learner's at 10%. If a profile criterion is missing, omit it and renormalize over the remaining criteria.
+- Recommendation reads do not persist data. `POST /api/v1/connect` revalidates the selected open request and match, then records the recommendation, score, pending session, both participants, and their link in one transaction.
+- A request creator may withdraw a pending request; only the invited peer may confirm or decline it. Confirmation marks the learning request as matched. Declining leaves it open for other eligible tutors. Cancelling a confirmed session reopens the learning request.
+
+Algorithm **#2 ZPD-gap matching** is the only selected alternative. It requires a tutee proficiency baseline and ranks by the same one-level-optimal gap scale; if the baseline is missing or the tutor is not above it, that pair is not returned. Algorithms #3–#6 remain design references and are not selectable.
+
+The logical candidate query joins open `learning_requests` to `subjects`, active tutee and tutor accounts, `tutor_subjects`, tutor-role assignments, and both `student_profiles`. Parameters are `@user_id`, `@is_tutor`, and optional `@request_id`. For a tutor, the query returns their matching tutee requests; for a student/tutee, it returns tutors for their requests. Both paths use the same scorer and sort by score descending, then candidate name.
+
+The browser-facing routes are `GET /api/v1/connect/recommendations` and `POST /api/v1/connect`; Mentos proxies them to the host-only DBSERV matching routes. The legacy `/api/v1/rec-peer-tutor` and `/api/v1/rec-peer-tutee` routes are aliases for recommendations. The developer System page can switch between #1 and #2. The selected algorithm is process-local and resets to #1 when DBSERV restarts.
 
 > [!NOTE]
-> After integration of the backend to frontend, some placeholder or templates are removed. Although, some parts of `Mentos/public` HTML front end are yet to be integrated to the backend.
+> The populated dashboard, profile, tutor/tutee matching, session, feedback, and analytics views use the authenticated APIs. Resources and Settings were not part of this page update. Resources retain their prior API wiring. A browser/database end-to-end verification is still outstanding.
 
 ## Corrected frontend status
 
 | Area                            | Current status                                                              |
 | ------------------------------- | --------------------------------------------------------------------------- |
 | Login/protected pages           | Connected                                                                   |
-| Student authentication          | Connected to email provisioning; not complete password/OAuth authentication |
+| Student authentication          | Six-digit email verification and optional Identity password sign-in connected; OAuth is not implemented |
 | Admin authentication            | Connected to `/api/v1/auth/admin/login`                                     |
-| Profile display/update          | Partially connected; display name, grade, and section update live           |
-| Bio, roles, subject selections  | Still not sent to the backend                                               |
-| Tutors                          | Live list and request creation connected                                    |
-| Tutor favorites/search/details  | Client-side only                                                            |
-| Tutees                          | Live requests connected                                                     |
-| Learning requests               | Connected                                                                   |
-| Sessions list                   | Live list connected                                                         |
-| Session creation                | Partially connected                                                         |
-| Session cancel/complete actions | Still browser `localStorage` only                                           |
-| Resources                       | Live listing and creation connected                                         |
-| Resource update/delete UI       | Not connected                                                               |
-| Feedback/posts/votes            | Live API wiring exists, but legacy browser-storage fallback remains         |
+| Profile display/update          | Live account name, role, grade, section, bio, roles, subjects, email, and initials avatar |
+| Tutors                          | Ranked recommendations use current requests and tutor-subject profiles      |
+| Tutor search/filter/sort        | Client-side filters operate on live recommendations; availability and ratings are not provided |
+| Tutees                          | Tutors see ranked, open requests matched to their tutor subjects             |
+| Learning requests               | Creation and listing connected                                              |
+| Session requests                | Explicit start/end time, pending invitation, and invitee confirm/decline     |
+| Session actions                 | Cancel, complete, and supported status transitions persist through the API   |
+| Resources                       | Existing API wiring remains; no resource-page changes were made in this update |
+| Feedback/posts/votes            | Live list, posting, vote counts, and per-account vote state                  |
 | Support form                    | Connected to the support endpoint                                           |
-| Analytics summary/consent       | Connected                                                                   |
-| Analytics event emission        | Not currently emitted by the active frontend                                |
-| Home statistics                 | Now connected to live `/dashboard` data                                     |
-| Home recommended tutors         | Deferred with `/connect`                                                    |
+| Analytics summary/consent       | Current-user summary; consent can be granted or withdrawn                   |
+| Analytics event emission        | Consent-gated page views and page duration on in-app navigation              |
+| Home statistics/recommendations | Live `/dashboard` aggregates and ranked matching recommendations             |
 | Help/FAQ                        | Static content                                                              |
 | Admin management UI             | Authentication connected; dedicated admin management UI is still incomplete |
 
-<sub style="display:flex; color: gray; font-style: italic; justify-content: center;">End-to-end operation still requires the DBSERV database, schemas v5–v7, and seeded Identity accounts.</sub>
+<sub style="display:flex; color: gray; font-style: italic; justify-content: center;">Production DBSERV and Mentos are deployed as of 2026-11-22; the active DBSERV configuration uses the palsys database and six-digit email codes. Database-backed browser end-to-end testing is not recorded here; developer Identity routes require a seeded Identity account.</sub>
 
 
 ---
@@ -108,7 +139,7 @@ As of the moment this is the current progress on the latest updated build with t
 | Refinement            | #6                     | Adjusts rankings as ratings accumulate                                 |
 | Separate module       | #4                     | Study-group formation only                                             |
 
-As of the moment `Mentos` currently applies ISO/IEC 25010:2023 quality model partially.  
+`Mentos` partially applies the ISO/IEC 25010:2023 product-quality model. The numeric table below is the prior internal baseline; it was not re-scored for this status update.
 
 > [!IMPORTANT]
 >  product-quality characteristics for evaluation, not a certification pass/fail test. [Official ISO reference](https://www.iso.org/standard/78176.html)
@@ -125,4 +156,5 @@ As of the moment `Mentos` currently applies ISO/IEC 25010:2023 quality model par
 |Flexibility|6.0|
 |Safety|3.5|
 |Overall|**5.1/10**|
-The project is currently at prototype/integration stage. The main quality gaps are authentication, matching, frontend placeholders/local storage fallbacks, missing performance/security testing, and unapplied database migrations. 
+
+The project remains at prototype/integration stage. Matching, populated-page data, session-request handling, and production deployment are implemented. Database-backed browser end-to-end testing, formal performance/security/privacy reviews, and some administrative and resource-management UI remain outstanding.

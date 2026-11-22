@@ -81,8 +81,9 @@ DB_USER: dbpals
 DB_NAME: palsysdb
 ```
 
-Set only `DB_PASSWORD` in `.env`. The password is deliberately ignored in
-YAML. The API rejects resources not listed in `DB_ALLOWED_TABLES`.
+Set `DB_PASSWORD`, `HOST_SHARED_KEY`, and `SHARED_SECRET` in `.env`.
+`DB_PASSWORD` and the shared authentication secrets are deliberately ignored
+in YAML. The API rejects resources not listed in `DB_ALLOWED_TABLES`.
 
 > [!NOTE]
 > The tables in `DB_ALLOWED_TABLES` are preset tables that are aligned with the current schema version. Use comma's to add more tables.
@@ -101,5 +102,6 @@ Then start DBSERV from the `server/` directory:
 ```
 
 The .NET DBSERV host reads non-secret settings from `server/config.yaml` and
-reads only `DB_PASSWORD` from `server/.env` or the process environment. The
-Mentos host authenticates to DBSERV separately with `HOST_SHARED_KEY`.
+reads `DB_PASSWORD`, `HOST_SHARED_KEY`, and `SHARED_SECRET` from `server/.env`
+or the process environment. Mentos reads the matching `HOST_SHARED_KEY` from
+`mentos/.env`.

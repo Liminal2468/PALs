@@ -3,7 +3,7 @@
     ViewData["Description"] = "PALs is a peer-assisted learning community for STI College Cubao Senior High School.";
     ViewData["Stylesheet"] = "/styles/login.css";
     ViewData["PageType"] = "landing";
-    ViewData["Scripts"] = new[] { "/scripts/login.js" };
+    ViewData["Scripts"] = new[] { "/scripts/login.js?v=20261122-password-otp" };
 }
 <div id="loginComponent" aria-live="polite"></div>
     <div id="verifyComponent" aria-live="polite"></div>
@@ -199,7 +199,7 @@
                 <p class="eyebrow">STI College Cubao · Senior High School</p>
                 <h1 id="banner-title">Learn better, together.</h1>
                 <p class="banner-description">Find support, share what you know, and make every learning moment count with PALs.</p>
-                <a class="banner-link" href="/pals">
+                <a class="banner-link" href="/pals" data-login-aware>
                     Explore PALs
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M5 12h14"/>
